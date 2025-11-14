@@ -1,0 +1,71 @@
+:root {
+  /* Primarios */
+  --color-primary: #1C67AB;
+  --color-primary-light: #4BA3E2;
+  --color-secondary: #4BA3E2; /* para gradientes existentes */
+  --color-accent: #4DA2FF; /* para gradientes existentes */
+
+  /* Secundarios */
+  --color-info-card: #DCEAF7;
+  --color-soft-divider: #EAF2F8;
+
+  /* Fondo */
+  --color-background: #E3E3D6;
+  --color-card: #FFFFFF;
+
+  /* Acentos */
+  --color-gold: #F8C94A;
+  --color-coral: #F56C7B;
+  --color-eco: #6CCF7E;
+  --color-planet: #4DA2FF;
+
+  /* Texto */
+  --color-title: #1A3956;
+  --color-text: #333333;
+  --color-text-secondary: #6A7A8A;
+
+  /* Estados */
+  --color-error: #D9534F;
+  --color-info: #4B9FD9;
+
+  /* Controles */
+  --color-ring: #4BA3E2;
+  --color-input: #EAF2F8;
+}
+
+.bg-background { background-color: var(--color-background); }
+.bg-card { background-color: var(--color-card); }
+.text-card-foreground { color: var(--color-text); }
+.text-muted-foreground { color: var(--color-text-secondary); }
+.text-primary { color: var(--color-primary); }
+.bg-primary { background-color: var(--color-primary); }
+.bg-primary-light { background-color: var(--color-primary-light); }
+.text-primary-foreground { color: white; }
+.border-input { border-color: var(--color-input); }
+.ring-ring\/50 { box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-ring) 50%, transparent); }
+
+/* Utilidades de paleta */
+.text-title { color: var(--color-title); }
+.bg-info-card { background-color: var(--color-info-card); }
+.bg-soft-divider { background-color: var(--color-soft-divider); }
+.text-error { color: var(--color-error); }
+.text-info { color: var(--color-info); }
+.text-gold { color: var(--color-gold); }
+.text-coral { color: var(--color-coral); }
+.text-eco { color: var(--color-eco); }
+.text-planet { color: var(--color-planet); }
+
+/* Animaciones inspiradas en el sitio anterior */
+@keyframes float {
+  0% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+  100% { transform: translateY(0); }
+}
+.animate-float { animation: float 4s ease-in-out infinite; }
+
+@keyframes wave {
+  0% { transform: translateX(0); }
+  50% { transform: translateX(4px); }
+  100% { transform: translateX(0); }
+}
+.animate-wave { animation: wave 2.5s ease-in-out infinite; }

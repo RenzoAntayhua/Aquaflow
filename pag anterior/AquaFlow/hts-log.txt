@@ -1,0 +1,14 @@
+HTTrack3.49-2+htsswf+htsjava launched on Fri, 14 Nov 2025 00:29:38 at https://aqua-flow.netlify.app/ +*.png +*.gif +*.jpg +*.jpeg +*.css +*.js -ad.doubleclick.net/* -mime:application/foobar
+(winhttrack -qwC2%Ps2u1%s%uN0%I0p3DaK0H0%kf2A25000%f#f -F "Mozilla/4.5 (compatible; HTTrack 3.0x; Windows 98)" -%F "<!-- Mirrored from %s%s by HTTrack Website Copier/3.x [XR&CO'2014], %s -->" -%l "en, *" https://aqua-flow.netlify.app/ -O1 "C:\My Web Sites\Aquaflow" +*.png +*.gif +*.jpg +*.jpeg +*.css +*.js -ad.doubleclick.net/* -mime:application/foobar )
+
+Information, Warnings and Errors reported for this mirror:
+note:	the hts-log.txt file, and hts-cache folder, may contain sensitive information,
+	such as username/password authentication for websites mirrored in this project
+	do not share these files/folders if you want these information to remain private
+
+00:29:38	Warning: 	Cache: damaged cache, trying to repair
+00:29:38	Warning: 	Cache: 0 bytes successfully recovered in 0 entries
+00:29:38	Warning: 	Cache: error trying to open the cache
+
+HTTrack Website Copier/3.49-2 mirror complete in 12 seconds : 14 links scanned, 13 files written (779718 bytes overall) [313020 bytes received at 26085 bytes/sec], 664890 bytes transferred using HTTP compression in 10 files, ratio 28%
+(No errors, 3 warnings, 0 messages)

@@ -1,0 +1,55 @@
+chunk-XPR23Y44.js?v=e83ec078:21549 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+react-router-dom.js?v=e83ec078:4411 ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+warnOnce @ react-router-dom.js?v=e83ec078:4411
+react-router-dom.js?v=e83ec078:4411 ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+warnOnce @ react-router-dom.js?v=e83ec078:4411
+Estructura.jsx:39 Uncaught ReferenceError: RoleNavbar is not defined
+    at DirectorEstructura (Estructura.jsx:39:8)
+    at renderWithHooks (chunk-XPR23Y44.js?v=e83ec078:11546:26)
+    at mountIndeterminateComponent (chunk-XPR23Y44.js?v=e83ec078:14924:21)
+    at beginWork (chunk-XPR23Y44.js?v=e83ec078:15912:22)
+    at HTMLUnknownElement.callCallback2 (chunk-XPR23Y44.js?v=e83ec078:3672:22)
+    at Object.invokeGuardedCallbackDev (chunk-XPR23Y44.js?v=e83ec078:3697:24)
+    at invokeGuardedCallback (chunk-XPR23Y44.js?v=e83ec078:3731:39)
+    at beginWork$1 (chunk-XPR23Y44.js?v=e83ec078:19763:15)
+    at performUnitOfWork (chunk-XPR23Y44.js?v=e83ec078:19196:20)
+    at workLoopSync (chunk-XPR23Y44.js?v=e83ec078:19135:13)
+Estructura.jsx:39 Uncaught ReferenceError: RoleNavbar is not defined
+    at DirectorEstructura (Estructura.jsx:39:8)
+    at renderWithHooks (chunk-XPR23Y44.js?v=e83ec078:11546:26)
+    at mountIndeterminateComponent (chunk-XPR23Y44.js?v=e83ec078:14924:21)
+    at beginWork (chunk-XPR23Y44.js?v=e83ec078:15912:22)
+    at HTMLUnknownElement.callCallback2 (chunk-XPR23Y44.js?v=e83ec078:3672:22)
+    at Object.invokeGuardedCallbackDev (chunk-XPR23Y44.js?v=e83ec078:3697:24)
+    at invokeGuardedCallback (chunk-XPR23Y44.js?v=e83ec078:3731:39)
+    at beginWork$1 (chunk-XPR23Y44.js?v=e83ec078:19763:15)
+    at performUnitOfWork (chunk-XPR23Y44.js?v=e83ec078:19196:20)
+    at workLoopSync (chunk-XPR23Y44.js?v=e83ec078:19135:13)
+chunk-XPR23Y44.js?v=e83ec078:14030 The above error occurred in the <DirectorEstructura> component:
+
+    at DirectorEstructura (http://localhost:5173/src/pages/director/Estructura.jsx:25:25)
+    at RequireRole (http://localhost:5173/src/components/RequireRole.jsx:20:39)
+    at RenderedRoute (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=e83ec078:4106:5)
+    at Routes (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=e83ec078:4576:5)
+    at div
+    at main
+    at div
+    at App (http://localhost:5173/src/App.jsx:48:39)
+    at AuthProvider (http://localhost:5173/src/context/AuthContext.jsx:20:32)
+    at Router (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=e83ec078:4519:15)
+    at BrowserRouter (http://localhost:5173/node_modules/.vite/deps/react-router-dom.js?v=e83ec078:5265:5)
+
+Consider adding an error boundary to your tree to customize error handling behavior.
+Visit https://reactjs.org/link/error-boundaries to learn more about error boundaries.
+logCapturedError @ chunk-XPR23Y44.js?v=e83ec078:14030
+chunk-XPR23Y44.js?v=e83ec078:19411 Uncaught ReferenceError: RoleNavbar is not defined
+    at DirectorEstructura (Estructura.jsx:39:8)
+    at renderWithHooks (chunk-XPR23Y44.js?v=e83ec078:11546:26)
+    at mountIndeterminateComponent (chunk-XPR23Y44.js?v=e83ec078:14924:21)
+    at beginWork (chunk-XPR23Y44.js?v=e83ec078:15912:22)
+    at beginWork$1 (chunk-XPR23Y44.js?v=e83ec078:19751:22)
+    at performUnitOfWork (chunk-XPR23Y44.js?v=e83ec078:19196:20)
+    at workLoopSync (chunk-XPR23Y44.js?v=e83ec078:19135:13)
+    at renderRootSync (chunk-XPR23Y44.js?v=e83ec078:19114:15)
+    at recoverFromConcurrentError (chunk-XPR23Y44.js?v=e83ec078:18734:28)
+    at performConcurrentWorkOnRoot (chunk-XPR23Y44.js?v=e83ec078:18682:30)
