@@ -117,38 +117,56 @@ export default function DirectorReglas() {
           <div className="mb-2">
             <input className="h-9 w-full rounded-md border px-3 text-sm" placeholder="Buscar por nombre o email" value={q} onChange={e=>setQ(e.target.value)} />
           </div>
-          <div className="border rounded-md">
-            <div className="grid grid-cols-3 text-xs font-medium text-slate-500 px-3 py-2 border-b">
-              <div>Nombre</div>
-              <div>Email</div>
-              <div>Acciones</div>
+          <div className="border rounded-md overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-600 text-xs">
+                  <tr>
+                    <th className="px-3 py-2 text-left">Nombre</th>
+                    <th className="px-3 py-2 text-left">Email</th>
+                    <th className="px-3 py-2 text-left">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(q ? profesores.filter(p => (p.nombre||'').toLowerCase().includes(q.toLowerCase()) || (p.email||'').toLowerCase().includes(q.toLowerCase())) : profesores).map((p, i) => (
+                    <tr key={p.id || i} className={`${i>0 ? 'border-t' : ''} hover:bg-slate-50`}>
+                      <td className="px-3 py-2">
+                        {editId === p.id ? (
+                          <input className="h-8 rounded-md border px-2 text-sm w-full" value={editNombre} onChange={e => setEditNombre(e.target.value)} />
+                        ) : (
+                          p.nombre
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {editId === p.id ? (
+                          <input className="h-8 rounded-md border px-2 text-sm w-full" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
+                        ) : (
+                          p.email
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        {editId === p.id ? (
+                          <div className="flex gap-2">
+                            <button className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs" onClick={saveEdit} disabled={loading}>Guardar</button>
+                            <button className="h-8 px-3 rounded-md border text-xs" onClick={cancelEdit} disabled={loading}>Cancelar</button>
+                          </div>
+                        ) : (
+                          <div className="flex gap-3">
+                            <button className="text-blue-600" onClick={() => startEdit(p)}>Editar</button>
+                            <button className="text-red-700" onClick={() => { if (window.confirm('¿Eliminar profesor?')) deleteProfesor(p.id) }}>Eliminar</button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {(q ? profesores.filter(p => (p.nombre||'').toLowerCase().includes(q.toLowerCase()) || (p.email||'').toLowerCase().includes(q.toLowerCase())) : profesores).length === 0 && (
+                    <tr>
+                      <td className="px-3 py-3 text-slate-500 text-center" colSpan={3}>No hay profesores registrados</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
-            {(q ? profesores.filter(p => (p.nombre||'').toLowerCase().includes(q.toLowerCase()) || (p.email||'').toLowerCase().includes(q.toLowerCase())) : profesores).map((p, i) => (
-              <div key={p.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>
-                {editId === p.id ? (
-                  <div className="grid grid-cols-3 items-center gap-2">
-                    <input className="h-8 rounded-md border px-2 text-sm" value={editNombre} onChange={e => setEditNombre(e.target.value)} />
-                    <input className="h-8 rounded-md border px-2 text-sm" value={editEmail} onChange={e => setEditEmail(e.target.value)} />
-                    <div className="flex gap-2">
-                      <button className="px-3 h-8 rounded-md bg-primary text-primary-foreground" onClick={saveEdit} disabled={loading}>Guardar</button>
-                      <button className="px-3 h-8 rounded-md border" onClick={cancelEdit} disabled={loading}>Cancelar</button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-3 items-center">
-                    <div>{p.nombre}</div>
-                    <div>{p.email}</div>
-                    <div className="flex gap-3">
-                      <button className="text-blue-600" onClick={() => startEdit(p)}>Editar</button>
-                      <button className="text-red-700" onClick={() => { if (window.confirm('¿Eliminar profesor?')) deleteProfesor(p.id) }}>Eliminar</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
-            {profesores.length === 0 && (
-              <div className="px-3 py-2 text-sm text-slate-500">No hay profesores registrados</div>
-            )}
           </div>
         </div>
       </div>
