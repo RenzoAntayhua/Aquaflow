@@ -2,10 +2,10 @@ import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function RequireRole({ role, children }) {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const location = useLocation()
 
-  if (!user) {
+  if (!user || !token) {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />
   }
 
@@ -22,11 +22,11 @@ export default function RequireRole({ role, children }) {
     const aulaId = user?.aulaId || 1
     const colegioId = user?.colegioId || 1
     const landing = rol === 'estudiante'
-      ? '/estudiante/retos'
+      ? '/estudiante/inicio'
       : rol === 'profesor'
         ? `/profesor/aula/${aulaId}`
         : rol === 'director'
-          ? `/director/colegio/${colegioId}/estructura`
+          ? `/director/colegio/${colegioId}`
           : '/admin'
     return <Navigate to={landing} replace />
   }

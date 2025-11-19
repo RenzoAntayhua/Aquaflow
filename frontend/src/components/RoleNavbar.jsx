@@ -80,14 +80,15 @@ function buildItemsForRole(rol, { aulaId, colegioId, user }) {
         { label: `Aula${defAulaId ? ` ${defAulaId}` : ''}`, to: `/profesor/aula/${defAulaId}` },
         { label: 'Estudiantes', to: `/profesor/aula/${defAulaId}/estudiantes` },
         { label: 'Retos (plantillas)', to: `/profesor/aula/${defAulaId}/retos` },
-        { label: 'Validar insignias', to: `/profesor/aula/${defAulaId}/insignias` },
         { label: 'Reportes', to: `/profesor/aula/${defAulaId}/reportes` },
       ]
     case 'director':
       return [
+        { label: 'Inicio', to: `/director/colegio/${defColegioId}` },
         { label: 'Aulas', to: `/director/colegio/${defColegioId}/estructura` },
         { label: 'Profesores', to: `/director/colegio/${defColegioId}/reglas` },
         { label: 'Espacios', to: `/director/colegio/${defColegioId}/sensores` },
+        { label: 'Auditoría', to: `/director/colegio/${defColegioId}/auditoria` },
       ]
     case 'admin':
       return [

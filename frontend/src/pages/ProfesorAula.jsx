@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useParams, Navigate, useLocation } from 'react-router-dom'
 import KPI from '../components/KPI'
-import { getConsumoAgregado, getPlantillasRetos, crearRetoAula, getRetosAula, crearPregunta, listarPreguntas, crearSesionTrivia } from '../lib/api'
+import { getConsumoAgregado, getPlantillasRetos, crearRetoAula, getRetosAula, crearPregunta, listarPreguntas, getEstudiantesAula } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '../context/ToastContext'
 
 export default function ProfesorAula() {
   const { aulaId } = useParams()
   const [consumo, setConsumo] = useState(null)
   const [plantillas, setPlantillas] = useState([])
   const [retos, setRetos] = useState([])
+  const [estudiantesCount, setEstudiantesCount] = useState(0)
+  
   const [pSel, setPSel] = useState('')
   const [inicio, setInicio] = useState('')
   const [fin, setFin] = useState('')
@@ -26,8 +29,7 @@ export default function ProfesorAula() {
   const [dificultad, setDificultad] = useState('facil')
   const [preguntas, setPreguntas] = useState([])
   const [bancoId, setBancoId] = useState('')
-  const [cantidad, setCantidad] = useState(10)
-  const [sesionMsg, setSesionMsg] = useState('')
+  const toast = useToast()
 
   if (user?.requiereCambioPassword) {
     return <Navigate to="/password-change" replace />
@@ -37,6 +39,8 @@ export default function ProfesorAula() {
     getConsumoAgregado({ aulaId, periodo: 'semana' }).then(setConsumo).catch(setError)
     getPlantillasRetos().then(setPlantillas).catch(setError)
     getRetosAula({ aulaId }).then(setRetos).catch(() => {})
+    getEstudiantesAula({ aulaId }).then(l => setEstudiantesCount(Array.isArray(l) ? l.length : 0)).catch(() => {})
+    
   }, [aulaId])
 
   useEffect(() => {
@@ -54,8 +58,10 @@ export default function ProfesorAula() {
       setFin('')
       const lista = await getRetosAula({ aulaId })
       setRetos(lista)
+      toast?.show('Reto creado', 'success')
     } catch (e) {
       setError(e.message)
+      toast?.show(e.message, 'error')
     }
   }
 
@@ -70,20 +76,10 @@ export default function ProfesorAula() {
       setOpciones('')
       setCorrecta('')
       listarPreguntas({ tipo, categoria, dificultad, activa: true }).then(setPreguntas).catch(() => {})
+      toast?.show('Pregunta guardada', 'success')
     } catch (e) {
       setError(e.message)
-    }
-  }
-
-  async function crearSesion() {
-    try {
-      const creadorId = user?.Id || user?.id || 0
-      const bId = bancoId ? Number(bancoId) : 0
-      const cant = Number(cantidad) || 10
-      const res = await crearSesionTrivia({ aulaId, creadorId, bancoId: bId, cantidad: cant, categoria, dificultad })
-      setSesionMsg(`Sesión creada #${res.Id || res.id} con ${res.cantidad} preguntas`)
-    } catch (e) {
-      setError(e.message)
+      toast?.show(e.message, 'error')
     }
   }
 
@@ -98,6 +94,22 @@ export default function ProfesorAula() {
           <div className="w-full max-w-sm"><KPI title="Reducción" value={`${consumo.reduccionPct}%`} /></div>
         </div>
       )}
+      {tab === 'aula' && (() => {
+        const activos = retos.filter(r => (r.Estado === 0 || r.estado === 0))
+        const triviasActivas = activos.filter(r => {
+          const p = plantillas.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
+          const codigo = p ? (p.Codigo || p.codigo || '') : ''
+          return String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
+        }).length
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 place-items-center">
+            <div className="w-full max-w-sm"><KPI title="Estudiantes" value={estudiantesCount} /></div>
+            <div className="w-full max-w-sm"><KPI title="Retos activos" value={activos.length} /></div>
+            <div className="w-full max-w-sm"><KPI title="Retos completados" value={retos.filter(r => (r.Estado === 2 || r.estado === 2)).length} /></div>
+            <div className="w-full max-w-sm"><KPI title="Trivias activas" value={triviasActivas} /></div>
+          </div>
+        )
+      })()}
       {tab === 'retos' && (
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-card rounded-xl border p-6 shadow">
@@ -212,37 +224,7 @@ export default function ProfesorAula() {
               </div>
             </div>
           </div>
-          <div className="bg-card rounded-xl border p-6 shadow">
-            <div className="text-sm text-slate-600 mb-3">Crear sesión de trivia</div>
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">Cantidad</label>
-                  <input type="number" className="h-10 w-full rounded-md border px-3 text-sm" value={cantidad} onChange={e => setCantidad(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm">Banco (opcional)</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={bancoId} onChange={e => setBancoId(e.target.value)} />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">Categoría</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={categoria} onChange={e => setCategoria(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm">Dificultad</label>
-                  <select className="h-10 w-full rounded-md border px-3 text-sm" value={dificultad} onChange={e => setDificultad(e.target.value)}>
-                    <option value="facil">Fácil</option>
-                    <option value="media">Media</option>
-                    <option value="dificil">Difícil</option>
-                  </select>
-                </div>
-              </div>
-              <button className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm" onClick={crearSesion}>Crear sesión</button>
-              {sesionMsg && <div className="text-green-700 text-sm">{sesionMsg}</div>}
-            </div>
-          </div>
+          
         </div>
       )}
       {tab === 'insignias' && (

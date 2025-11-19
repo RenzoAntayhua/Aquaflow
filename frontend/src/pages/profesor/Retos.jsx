@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useParams, Navigate } from 'react-router-dom'
-import { getPlantillasRetos, crearRetoAula, getRetosAula, actualizarEstadoReto, crearPregunta, listarPreguntas, crearSesionTrivia } from '../../lib/api'
+import { getPlantillasRetos, crearRetoAula, getRetosAula, actualizarEstadoReto, crearPregunta, listarPreguntas } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
+import { useToast } from '../../context/ToastContext'
+import { useConfirm } from '../../context/ConfirmContext'
 
 export default function ProfesorRetos() {
   const { aulaId } = useParams()
   const { user } = useAuth()
+  const toast = useToast()
+  const { confirm } = useConfirm() || {}
   const [plantillas, setPlantillas] = useState([])
   const [retos, setRetos] = useState([])
   const [error, setError] = useState(null)
@@ -99,7 +103,8 @@ export default function ProfesorRetos() {
                 await crearRetoAula({ aulaId, plantillaId: Number(pSel), fechaInicio: inicio, fechaFin: fin, parametros: param })
                 setPSel(''); setInicio(''); setFin(''); setParam({})
                 const lista = await getRetosAula({ aulaId }); setRetos(lista)
-              } catch (e) { setError(e.message) }
+                toast?.show('Reto creado', 'success')
+              } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
             }}>Crear</button>
             {error && <div className="text-red-700 text-sm">{error}</div>}
           </div>
@@ -124,6 +129,8 @@ export default function ProfesorRetos() {
                   <div className="flex flex-wrap gap-2 text-xs">
                     <button className="text-blue-600" onClick={async () => {
                       try {
+                        const okConf = confirm ? await confirm('¿Activar este reto?') : window.confirm('¿Activar este reto?')
+                        if (!okConf) return
                         const pl = plantillas.find(p => String(p.Id || p.id) === String(r.PlantillaId || r.plantillaId))
                         const codigo = pl ? (pl.Codigo || pl.codigo || '') : ''
                         const esTrivia = String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
@@ -139,9 +146,10 @@ export default function ProfesorRetos() {
                         }
                         await actualizarEstadoReto({ retoId: r.Id || r.id, estado: 'activo' })
                         const lista = await getRetosAula({ aulaId }); setRetos(lista)
-                      } catch (e) { setError(e.message) }
+                        toast?.show('Reto activado', 'success')
+                      } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
                     }}>Activar</button>
-                    <button className="text-yellow-700" onClick={async () => { await actualizarEstadoReto({ retoId: r.Id || r.id, estado: 'pausado' }); const lista = await getRetosAula({ aulaId }); setRetos(lista) }}>Pausar</button>
+                    <button className="text-yellow-700" onClick={async () => { const okConf = confirm ? await confirm('¿Pausar este reto?') : window.confirm('¿Pausar este reto?'); if (!okConf) return; await actualizarEstadoReto({ retoId: r.Id || r.id, estado: 'pausado' }); const lista = await getRetosAula({ aulaId }); setRetos(lista); toast?.show('Reto pausado', 'success') }}>Pausar</button>
                     <button className="text-green-700" onClick={() => setRetoSel(r)}>
                       Gestionar
                     </button>
@@ -211,7 +219,8 @@ export default function ProfesorRetos() {
                   await crearPregunta({ texto, tipo: tipoC, opciones: opts, respuestaCorrecta: correcta, categoria: codigo, dificultad, creadorId, colegioId })
                   setTexto(''); setOpciones(''); setCorrecta('')
                   const lista = await listarPreguntas({ tipo: tipoC, categoria: codigo }); setPreguntasSel(lista); setPreguntas(lista)
-                } catch (e) { setError(e.message) }
+                  toast?.show('Pregunta guardada', 'success')
+                } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
               }}>Guardar pregunta</button>
             </div>
             <div className="mt-6">

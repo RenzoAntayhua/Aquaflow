@@ -1,20 +1,15 @@
 import { Routes, Route, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { useAuth } from './context/AuthContext'
-import EstudianteDashboard from './pages/EstudianteDashboard'
 import EstudianteRetos from './pages/estudiante/Retos'
 import EstudianteJuegos from './pages/estudiante/Juegos'
-import EstudianteProgreso from './pages/estudiante/Progreso'
-import EstudianteInsignias from './pages/estudiante/Insignias'
 import EstudianteRanking from './pages/estudiante/Ranking'
-import EstudianteTrivias from './pages/estudiante/Trivias'
-import EstudianteUnirme from './pages/estudiante/Unirme'
+ 
 import EstudianteInicio from './pages/estudiante/Inicio'
 import EstudiantePerfil from './pages/estudiante/Perfil'
 import EstudianteRecibos from './pages/estudiante/Recibos'
 import ProfesorAula from './pages/ProfesorAula'
 import ProfesorRetos from './pages/profesor/Retos'
-import ProfesorInsignias from './pages/profesor/Insignias'
 import ProfesorReportes from './pages/profesor/Reportes'
 import ProfesorEstudiantes from './pages/profesor/Estudiantes'
 import DirectorColegio from './pages/DirectorColegio'
@@ -27,11 +22,15 @@ import Home from './pages/admin/Home'
 import Colegios from './pages/admin/Colegios'
 import Usuarios from './pages/admin/Usuarios'
 import Reportes from './pages/admin/Reportes'
+import AdminAuditoria from './pages/admin/Auditoria'
 import Config from './pages/admin/Config'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PasswordChange from './pages/PasswordChange'
 import RoleNavbar from './components/RoleNavbar'
+import ToastContainer from './components/ToastContainer'
+import { ToastProvider } from './context/ToastContext'
+import { ConfirmProvider } from './context/ConfirmContext'
 
 export default function App() {
   const { user, setToken, setUser } = useAuth()
@@ -59,6 +58,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
+    <ToastProvider>
+    <ConfirmProvider>
     <div className="min-h-screen bg-background">
       {isRolePage && <RoleNavbar />}
       {showGenericHeader && (
@@ -121,18 +122,19 @@ export default function App() {
             <Route path="/profesor/aula/:aulaId" element={<RequireRole role="profesor"><ProfesorAula /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/estudiantes" element={<RequireRole role="profesor"><ProfesorEstudiantes /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/retos" element={<RequireRole role="profesor"><ProfesorRetos /></RequireRole>} />
-            <Route path="/profesor/aula/:aulaId/insignias" element={<RequireRole role="profesor"><ProfesorInsignias /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/reportes" element={<RequireRole role="profesor"><ProfesorReportes /></RequireRole>} />
-            <Route path="/director/colegio/:colegioId" element={<RequireRole role="director"><DirectorEstructura /></RequireRole>} />
+            <Route path="/director/colegio/:colegioId" element={<RequireRole role="director"><DirectorColegio /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/estructura" element={<RequireRole role="director"><DirectorEstructura /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/reglas" element={<RequireRole role="director"><DirectorReglas /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/sensores" element={<RequireRole role="director"><DirectorSensores /></RequireRole>} />
+            <Route path="/director/colegio/:colegioId/auditoria" element={<RequireRole role="director"><DirectorColegio /></RequireRole>} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Home />} />
               <Route path="colegios" element={<Colegios />} />
               { /* El administrador no crea aulas */ }
               <Route path="usuarios" element={<Usuarios />} />
               <Route path="reportes" element={<Reportes />} />
+              <Route path="auditoria" element={<AdminAuditoria />} />
               <Route path="config" element={<Config />} />
             </Route>
             <Route path="/login" element={<Login />} />
@@ -141,6 +143,9 @@ export default function App() {
           </Routes>
         </div>
       </main>
+      <ToastContainer />
     </div>
+    </ConfirmProvider>
+    </ToastProvider>
   )
 }

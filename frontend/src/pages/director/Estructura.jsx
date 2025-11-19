@@ -11,6 +11,7 @@ export default function DirectorEstructura() {
   const [aulas, setAulas] = useState([])
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [msg, setMsg] = useState('')
   const [nombre, setNombre] = useState('')
   const [grado, setGrado] = useState('')
   const [countAulas, setCountAulas] = useState(0)
@@ -30,9 +31,16 @@ export default function DirectorEstructura() {
     getEspacios({ colegioId }).then(list => setCountEspacios(list.length)).catch(() => {})
   }, [colegioId])
 
+  useEffect(() => {
+    if (!msg) return
+    const t = setTimeout(() => setMsg(''), 3000)
+    return () => clearTimeout(t)
+  }, [msg])
+
   async function submit() {
     setLoading(true)
     setError('')
+    setMsg('')
     try {
       await crearAula({ colegioId: Number(colegioId), nombre, grado, profesorId: profesorId ? Number(profesorId) : null })
       setProfesorId('')
@@ -41,6 +49,7 @@ export default function DirectorEstructura() {
       const lista = await getAulas({ colegioId })
       setAulas(lista)
       setCountAulas(lista.length)
+      setMsg('Aula creada')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -49,22 +58,24 @@ export default function DirectorEstructura() {
   }
 
   function startEdit(a) {
-    setEditId(a.Id || a.id)
-    setEditNombre(a.Nombre || a.nombre || '')
-    setEditGrado(a.Grado || a.grado || '')
-    setEditProfesorId(a.ProfesorId || a.profesorId || '')
+    setEditId(a.id)
+    setEditNombre(a.nombre || '')
+    setEditGrado(a.grado || '')
+    setEditProfesorId(a.profesorId || '')
   }
 
   async function saveEdit() {
     if (!editId) return
     setLoading(true)
     setError('')
+    setMsg('')
     try {
       await actualizarAula({ id: editId, nombre: editNombre, grado: editGrado, profesorId: editProfesorId ? Number(editProfesorId) : null })
       setEditId(null)
       const lista = await getAulas({ colegioId })
       setAulas(lista)
       setCountAulas(lista.length)
+      setMsg('Aula actualizada')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -82,11 +93,13 @@ export default function DirectorEstructura() {
   async function deleteAula(id) {
     setLoading(true)
     setError('')
+    setMsg('')
     try {
       await eliminarAula({ id })
       const lista = await getAulas({ colegioId })
       setAulas(lista)
       setCountAulas(lista.length)
+      setMsg('Aula eliminada')
     } catch (e) {
       setError(e.message)
     } finally {
@@ -118,11 +131,12 @@ export default function DirectorEstructura() {
               <select id="profesor" className="h-10 w-full rounded-md border px-3 text-sm" value={profesorId} onChange={e=>setProfesorId(e.target.value)}>
                 <option value="">--</option>
                 {profesores.map(p => (
-                  <option key={p.Id || p.id} value={p.Id || p.id}>{p.Nombre || p.nombre}</option>
+                  <option key={p.id} value={p.id}>{p.nombre}</option>
                 ))}
               </select>
             </div>
             {error && <div className="text-red-700 text-sm">{error}</div>}
+            {msg && <div className="text-green-700 text-sm">{msg}</div>}
             <button type="submit" disabled={loading} className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm">{loading ? 'Creando…' : 'Crear'}</button>
           </form>
         </div>
@@ -136,15 +150,15 @@ export default function DirectorEstructura() {
               <div>Acciones</div>
             </div>
             {aulas.map((a, i) => (
-              <div key={a.Id || a.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>
-                {editId === (a.Id || a.id) ? (
+              <div key={a.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>
+                {editId === a.id ? (
                   <div className="grid grid-cols-4 items-center gap-2">
                     <input className="h-8 rounded-md border px-2 text-sm" value={editNombre} onChange={e => setEditNombre(e.target.value)} />
                     <input className="h-8 rounded-md border px-2 text-sm" value={editGrado} onChange={e => setEditGrado(e.target.value)} />
                     <select className="h-8 rounded-md border px-2 text-sm" value={editProfesorId} onChange={e => setEditProfesorId(e.target.value)}>
                       <option value="">--</option>
                       {profesores.map(p => (
-                        <option key={p.Id || p.id} value={p.Id || p.id}>{p.Nombre || p.nombre}</option>
+                        <option key={p.id} value={p.id}>{p.nombre}</option>
                       ))}
                     </select>
                     <div className="flex gap-2">
@@ -154,12 +168,12 @@ export default function DirectorEstructura() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-4 items-center">
-                    <div>{a.Nombre || a.nombre}</div>
-                    <div>{a.Grado || a.grado}</div>
-                    <div>{(() => { const pr = profesores.find(p => (p.Id || p.id) === (a.ProfesorId || a.profesorId)); return pr ? (pr.Nombre || pr.nombre) : '--' })()}</div>
+                    <div>{a.nombre}</div>
+                    <div>{a.grado}</div>
+                    <div>{(() => { const pr = profesores.find(p => p.id === a.profesorId); return pr ? pr.nombre : '--' })()}</div>
                     <div className="flex gap-3">
                       <button className="text-blue-600" onClick={() => startEdit(a)}>Editar</button>
-                      <button className="text-red-700" onClick={() => deleteAula(a.Id || a.id)}>Eliminar</button>
+                      <button className="text-red-700" onClick={() => { if (window.confirm('¿Eliminar aula?')) deleteAula(a.id) }}>Eliminar</button>
                     </div>
                   </div>
                 )}

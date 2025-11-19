@@ -4,7 +4,7 @@ namespace AquaFlow.Api.Models
     public enum TipoEspacio { bano, lavadero, patio, otro }
     public enum TipoDispositivo { flujo, presion, humedad }
     public enum EstadoReto { activo, pausado, completado, fallido }
-    public enum TipoEvento { reto_completado, insignia_otorgada, trivia_completada, umbral_superado, inscripcion_solicitada }
+    public enum TipoEvento { reto_completado, insignia_otorgada, trivia_completada, umbral_superado, inscripcion_solicitada, admin_invitar_director, admin_invitar_profesor, admin_reset_password, admin_alerta_email, director_crear_aula, director_actualizar_aula, director_eliminar_aula, director_crear_profesor, director_actualizar_profesor, director_eliminar_profesor, director_crear_espacio, director_actualizar_espacio, director_eliminar_espacio }
     public enum PeriodoConsumo { dia, semana, mes }
     public enum NivelEducativo { primaria, secundaria, primaria_secundaria }
     public enum TipoPregunta { trivia, verdadero_falso }
@@ -246,33 +246,5 @@ namespace AquaFlow.Api.Models
         public int PreguntaId { get; set; }
     }
 
-    public class SesionTrivia
-    {
-        public int Id { get; set; }
-        public int AulaId { get; set; }
-        public int CreadorId { get; set; }
-        public string Estado { get; set; } = "activa";
-        public string Config { get; set; } = "{}";
-        public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
-    }
-
-    public class SesionPregunta
-    {
-        public int Id { get; set; }
-        public int SesionId { get; set; }
-        public int PreguntaId { get; set; }
-        public int Orden { get; set; }
-    }
-
-    public class IntentoRespuesta
-    {
-        public int Id { get; set; }
-        public int SesionId { get; set; }
-        public int UsuarioId { get; set; }
-        public int PreguntaId { get; set; }
-        public string Respuesta { get; set; } = string.Empty;
-        public bool Correcta { get; set; }
-        public int Puntos { get; set; }
-        public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
-    }
+    
 }

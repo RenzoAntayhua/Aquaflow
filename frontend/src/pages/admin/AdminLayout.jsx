@@ -40,6 +40,7 @@ export default function AdminLayout() {
             {/* El administrador no gestiona aulas */}
             <Tab to="/admin/usuarios" label="Usuarios" />
             <Tab to="/admin/reportes" label="Reportes" />
+            <Tab to="/admin/auditoria" label="Auditoría" />
             <Tab to="/admin/config" label="Config" />
           </nav>
           <UserMenu onLogout={handleLogout} />

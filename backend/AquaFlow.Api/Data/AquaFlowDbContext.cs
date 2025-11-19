@@ -30,9 +30,7 @@ namespace AquaFlow.Api.Data
         public DbSet<Pregunta> Preguntas => Set<Pregunta>();
         public DbSet<BancoPreguntas> BancosPreguntas => Set<BancoPreguntas>();
         public DbSet<BancoPregunta> BancosPreguntasPreguntas => Set<BancoPregunta>();
-        public DbSet<SesionTrivia> SesionesTrivia => Set<SesionTrivia>();
-        public DbSet<SesionPregunta> SesionesPreguntas => Set<SesionPregunta>();
-        public DbSet<IntentoRespuesta> IntentosRespuestas => Set<IntentoRespuesta>();
+        
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -70,8 +68,14 @@ namespace AquaFlow.Api.Data
                       .HasForeignKey(c => c.DistritoId)
                       .OnDelete(DeleteBehavior.Restrict);
 
-                entity.HasCheckConstraint("CK_colegios_nivel", "nivel IN ('primaria','secundaria','primaria_secundaria')");
-                entity.HasCheckConstraint("CK_colegios_estado", "estado IN ('activo','inactivo')");
+                entity.ToTable("colegios", t =>
+                {
+                    t.HasCheckConstraint("CK_colegios_nivel", "nivel IN ('primaria','secundaria','primaria_secundaria')");
+                });
+                entity.ToTable("colegios", t =>
+                {
+                    t.HasCheckConstraint("CK_colegios_estado", "estado IN ('activo','inactivo')");
+                });
                 entity.HasIndex(c => c.Ciudad).HasDatabaseName("IX_colegios_distrito");
             });
 
@@ -143,9 +147,7 @@ namespace AquaFlow.Api.Data
             modelBuilder.Entity<Pregunta>().ToTable("preguntas");
             modelBuilder.Entity<BancoPreguntas>().ToTable("bancos_preguntas");
             modelBuilder.Entity<BancoPregunta>().ToTable("bancos_preguntas_items");
-            modelBuilder.Entity<SesionTrivia>().ToTable("sesiones_trivia");
-            modelBuilder.Entity<SesionPregunta>().ToTable("sesiones_preguntas");
-            modelBuilder.Entity<IntentoRespuesta>().ToTable("intentos_respuestas");
+            
 
             modelBuilder.Entity<Usuario>()
                 .HasIndex(u => u.Email)
@@ -168,9 +170,7 @@ namespace AquaFlow.Api.Data
                 .HasIndex(bp => new { bp.BancoId, bp.PreguntaId })
                 .IsUnique();
 
-            modelBuilder.Entity<SesionPregunta>()
-                .HasIndex(sp => new { sp.SesionId, sp.Orden })
-                .IsUnique();
+            
         }
     }
 }

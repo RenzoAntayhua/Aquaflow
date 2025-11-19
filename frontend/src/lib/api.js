@@ -1,4 +1,4 @@
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000').replace(/\/+$/, '')
 
 async function apiFetch(path, { method = 'GET', headers = {}, body } = {}) {
   const token = localStorage.getItem('token')
@@ -79,26 +79,7 @@ export async function asociarPreguntasABanco({ bancoId, preguntaIds }) {
   return apiFetch(`/api/bancos/${bancoId}/preguntas`, { method: 'POST', body: { preguntaIds } })
 }
 
-// Sesiones de Trivia
-export async function crearSesionTrivia({ aulaId, creadorId, bancoId, cantidad, categoria, dificultad }) {
-  return apiFetch(`/api/aulas/${aulaId}/trivia/sesiones`, { method: 'POST', body: { creadorId, bancoId, cantidad, categoria, dificultad } })
-}
-
-export async function getPreguntasSesion({ sesionId }) {
-  return apiFetch(`/api/trivia/sesiones/${sesionId}/preguntas`)
-}
-
-export async function enviarRespuestaSesion({ sesionId, usuarioId, preguntaId, respuesta }) {
-  return apiFetch(`/api/trivia/sesiones/${sesionId}/respuesta`, { method: 'POST', body: { usuarioId, preguntaId, respuesta } })
-}
-
-export async function finalizarSesion({ sesionId, usuarioId }) {
-  return apiFetch(`/api/trivia/sesiones/${sesionId}/finalizar`, { method: 'POST', body: { usuarioId } })
-}
-
-export async function getSesionesTriviaAula({ aulaId }) {
-  return apiFetch(`/api/aulas/${aulaId}/trivia/sesiones`)
-}
+// (Sesiones eliminadas)
 
 // Resultados y puntos
 export async function registrarResultadoJuego({ usuarioId, tipo, litrosAhorrados = 0, juegoId, aulaId }) {
@@ -111,6 +92,53 @@ export async function agregarPuntosUsuario({ usuarioId, valor, motivo = 'trivia_
 
 export async function verificarRetoJugado({ usuarioId, retoId }) {
   return apiFetch(`/api/usuarios/${usuarioId}/retos/${retoId}/jugado`)
+}
+
+// Admin stats
+export async function getAdminStats() {
+  return apiFetch(`/api/admin/stats`)
+}
+
+// Admin: Usuarios
+export async function adminBuscarUsuarios({ q, rol, colegioId, estado, limit = 50, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (q) params.set('q', q)
+  if (rol) params.set('rol', rol)
+  if (colegioId) params.set('colegioId', String(colegioId))
+  if (estado) params.set('estado', estado)
+  if (limit) params.set('limit', String(limit))
+  if (offset) params.set('offset', String(offset))
+  const qs = params.toString()
+  return apiFetch(`/api/admin/usuarios${qs ? `?${qs}` : ''}`)
+}
+
+export async function adminInvitarDirector({ nombre, email, colegioId }) {
+  return apiFetch(`/api/admin/usuarios/invitar-director`, { method: 'POST', body: { nombre, email, colegioId } })
+}
+
+export async function adminInvitarProfesor({ nombre, email, colegioId }) {
+  return apiFetch(`/api/admin/usuarios/invitar-profesor`, { method: 'POST', body: { nombre, email, colegioId } })
+}
+
+export async function adminResetPassword({ usuarioId, email }) {
+  const body = {}
+  if (usuarioId) body.usuarioId = usuarioId
+  if (email) body.email = email
+  return apiFetch(`/api/admin/usuarios/reset-password`, { method: 'POST', body })
+}
+
+export async function adminAuditoria({ tipo, adminId, desde, hasta, email, targetId, limit = 100, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (tipo) params.set('tipo', tipo)
+  if (adminId) params.set('adminId', String(adminId))
+  if (desde) params.set('desde', new Date(desde).toISOString())
+  if (hasta) params.set('hasta', new Date(hasta).toISOString())
+  if (email) params.set('email', email)
+  if (targetId) params.set('targetId', String(targetId))
+  if (limit) params.set('limit', String(limit))
+  if (offset) params.set('offset', String(offset))
+  const qs = params.toString()
+  return apiFetch(`/api/admin/auditoria${qs ? `?${qs}` : ''}`)
 }
 
 // Estudiantes (inscripciones)
@@ -146,6 +174,19 @@ export async function aprobarSolicitud({ aulaId, usuarioId }) {
 
 export async function rechazarSolicitud({ aulaId, usuarioId }) {
   return apiFetch(`/api/aulas/${aulaId}/solicitudes/${usuarioId}/rechazar`, { method: 'POST' })
+}
+
+export async function getPerfilEstudiantesAula({ aulaId }) {
+  return apiFetch(`/api/aulas/${aulaId}/perfil-estudiantes`)
+}
+
+export async function getEventosAula({ aulaId, tipo, limit = 50, offset = 0 }) {
+  const params = new URLSearchParams()
+  if (tipo) params.set('tipo', tipo)
+  if (limit) params.set('limit', String(limit))
+  if (offset) params.set('offset', String(offset))
+  const qs = params.toString()
+  return apiFetch(`/api/aulas/${aulaId}/eventos${qs ? `?${qs}` : ''}`)
 }
 
 export async function solicitarIngresoAula({ codigo, aulaId, usuarioId }) {
@@ -270,11 +311,11 @@ export async function getAulas({ colegioId }) {
 }
 
 export async function crearAula({ colegioId, nombre, grado, profesorId = null }) {
-  return apiFetch(`/api/aulas`, { method: 'POST', body: { ColegioId: colegioId, Nombre: nombre, Grado: grado, ProfesorId: profesorId } })
+  return apiFetch(`/api/aulas`, { method: 'POST', body: { colegioId, nombre, grado, profesorId } })
 }
 
 export async function actualizarAula({ id, nombre, grado, profesorId = null }) {
-  const body = { Nombre: nombre, Grado: grado, ProfesorId: profesorId }
+  const body = { nombre, grado, profesorId }
   return apiFetch(`/api/aulas/${id}`, { method: 'PUT', body })
 }
 
@@ -297,6 +338,22 @@ export async function crearProfesor({ colegioId, nombre, email }) {
   return apiFetch(`/api/profesores`, { method: 'POST', body: { nombre, email, colegioId } })
 }
 
+export async function actualizarProfesor({ id, nombre, email }) {
+  const body = {}
+  if (nombre) body.nombre = nombre
+  if (email) body.email = email
+  return apiFetch(`/api/profesores/${id}`, { method: 'PUT', body })
+}
+
+export async function eliminarProfesor({ id }) {
+  const res = await fetch(`${BASE_URL}/api/profesores/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.mensaje || 'Error al eliminar profesor')
+  }
+  return true
+}
+
 // Director: Espacios
 export async function getEspacios({ colegioId }) {
   const qs = colegioId ? `?colegioId=${colegioId}` : ''
@@ -304,6 +361,31 @@ export async function getEspacios({ colegioId }) {
 }
 
 export async function crearEspacio({ colegioId, etiqueta, tipo, aulaId = null }) {
-  const body = { ColegioId: colegioId, Etiqueta: etiqueta, Tipo: tipo, AulaId: aulaId }
+  const body = { colegioId, etiqueta, tipo, aulaId }
   return apiFetch(`/api/espacios`, { method: 'POST', body })
+}
+
+export async function actualizarEspacio({ id, etiqueta, tipo, aulaId = null }) {
+  const body = { etiqueta, tipo, aulaId }
+  return apiFetch(`/api/espacios/${id}`, { method: 'PUT', body })
+}
+
+export async function eliminarEspacio({ id }) {
+  const res = await fetch(`${BASE_URL}/api/espacios/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || ''}` } })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.mensaje || 'Error al eliminar espacio')
+  }
+  return true
+}
+// Director: Auditoría
+export async function directorAuditoria({ tipo, desde, hasta, limit = 100, offset = 0 } = {}) {
+  const params = new URLSearchParams()
+  if (tipo) params.set('tipo', tipo)
+  if (desde) params.set('desde', new Date(desde).toISOString())
+  if (hasta) params.set('hasta', new Date(hasta).toISOString())
+  if (limit) params.set('limit', String(limit))
+  if (offset) params.set('offset', String(offset))
+  const qs = params.toString()
+  return apiFetch(`/api/director/auditoria${qs ? `?${qs}` : ''}`)
 }

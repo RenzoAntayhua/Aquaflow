@@ -18,6 +18,8 @@ export default function Login() {
     setError('')
   try {
       const res = await login({ email, password })
+      if (res?.token) localStorage.setItem('token', res.token)
+      if (res?.usuario) localStorage.setItem('usuario', JSON.stringify(res.usuario))
       setToken(res.token)
       setUser(res.usuario)
       // Redirigir según rol (acepta string o número)
@@ -29,9 +31,9 @@ export default function Login() {
       const rol = typeof rawRol === 'string'
         ? rawRol.toLowerCase()
         : ['estudiante','profesor','director','admin'][Number(rawRol)] || String(rawRol).toLowerCase()
-      if (rol === 'estudiante') navigate('/estudiante/retos')
+      if (rol === 'estudiante') navigate('/estudiante/inicio')
       else if (rol === 'profesor') navigate(`/profesor/aula/${res.usuario?.aulaId || 1}`)
-      else if (rol === 'director') navigate(`/director/colegio/${res.usuario?.colegioId || 1}/estructura`)
+      else if (rol === 'director') navigate(`/director/colegio/${res.usuario?.colegioId || 1}`)
       else navigate('/admin')
     } catch (err) {
       setError(err.message)
