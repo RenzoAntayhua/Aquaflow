@@ -122,9 +122,7 @@ export default function EstudianteInicio() {
           <div className="mt-auto" />
         </div>
       </div>
-    </div>
-  )
-}
+
       <div className="bg-card rounded-xl border p-6 shadow">
         <h2 className="text-lg font-semibold mb-3">Clasificación del Aula</h2>
         <div className="border rounded-md">
@@ -145,3 +143,6 @@ export default function EstudianteInicio() {
           )}
         </div>
       </div>
+    </div>
+  )
+}
