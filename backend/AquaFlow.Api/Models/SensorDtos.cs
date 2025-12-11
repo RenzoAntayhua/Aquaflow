@@ -215,6 +215,7 @@ namespace AquaFlow.Api.Models
         public double LitrosHoy { get; set; }
         public double LitrosSemana { get; set; }
         public double LitrosMes { get; set; }
+        public List<object>? UltimosEventos { get; set; }
     }
 
     /// <summary>
@@ -230,6 +231,8 @@ namespace AquaFlow.Api.Models
         public double LitrosMes { get; set; }
         public double PromedioMensual { get; set; }
         public double VariacionPorcentaje { get; set; }
+        public int TotalEventosHoy { get; set; }
+        public int TotalEventosSemana { get; set; }
         public List<SensorStatusDto> Sensores { get; set; } = new();
         public List<ConsumoEspacioDto> ConsumosPorEspacio { get; set; } = new();
     }

@@ -30,7 +30,7 @@ const char* BACKEND_URL = "https://aquaflowbackend.azurewebsites.net";
 
 // Credenciales del dispositivo (se obtienen al registrar el dispositivo)
 const char* SENSOR_ID = "ESP32_CAUDAL_001";
-const char* API_KEY = "3bI-jHbfN3NQw_RO5DEfXN717YfSXHRXANYYjmndL-tTCGv9NB3u68b4g7mI9MtpWGbunAnFjVdyZ92xZ0R_FQ==";
+const char* API_KEY = "AWVjSDvme2dOc7dPCTg3rekS0mvhFj0DURrKYDLi";
 
 // Sensor YF-S201
 #define PIN_SENSOR 4  // GPIO4 (seguro para interrupciones en ESP32)

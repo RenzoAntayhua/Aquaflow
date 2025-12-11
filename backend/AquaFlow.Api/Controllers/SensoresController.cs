@@ -356,7 +356,7 @@ namespace AquaFlow.Api.Controllers
         }
 
         /// <summary>
-        /// Obtiene resumen de consumo por colegio
+        /// Obtiene resumen de consumo por colegio (usando eventos de uso)
         /// GET /api/sensores/consumo/colegio/{colegioId}
         /// </summary>
         [HttpGet("consumo/colegio/{colegioId:int}")]
@@ -375,22 +375,30 @@ namespace AquaFlow.Api.Controllers
 
             var sensoresStatus = new List<SensorStatusDto>();
             double litrosHoy = 0, litrosSemana = 0, litrosMes = 0;
+            int totalEventosHoy = 0, totalEventosSemana = 0;
 
             foreach (var disp in dispositivos)
             {
                 if (string.IsNullOrEmpty(disp.NumeroSerie)) continue;
 
-                var litrosHoySensor = await _influx.GetTotalLitrosAsync(disp.NumeroSerie, "-24h");
-                var litrosSemanaSensor = await _influx.GetTotalLitrosAsync(disp.NumeroSerie, "-7d");
-                var litrosMesSensor = await _influx.GetTotalLitrosAsync(disp.NumeroSerie, "-30d");
+                // Usar la nueva lógica de eventos
+                var resumenHoy = await _influx.GetResumenConsumoAsync(disp.NumeroSerie, "-24h");
+                var resumenSemana = await _influx.GetResumenConsumoAsync(disp.NumeroSerie, "-7d");
+                var resumenMes = await _influx.GetResumenConsumoAsync(disp.NumeroSerie, "-30d");
+
+                var litrosHoySensor = resumenHoy?.TotalLitros ?? 0;
+                var litrosSemanaSensor = resumenSemana?.TotalLitros ?? 0;
+                var litrosMesSensor = resumenMes?.TotalLitros ?? 0;
 
                 litrosHoy += litrosHoySensor;
                 litrosSemana += litrosSemanaSensor;
                 litrosMes += litrosMesSensor;
+                totalEventosHoy += resumenHoy?.TotalEventos ?? 0;
+                totalEventosSemana += resumenSemana?.TotalEventos ?? 0;
 
-                // Obtener última lectura
-                var ultimaData = await _influx.QueryFlowDataAsync(disp.NumeroSerie, "-5m");
-                var ultimaLectura = ultimaData.LastOrDefault();
+                // Obtener últimos eventos para mostrar en el dashboard
+                var ultimosEventos = await _influx.QueryEventosUsoAsync(disp.NumeroSerie, "-24h");
+                var ultimoEvento = ultimosEventos.FirstOrDefault();
 
                 // Obtener nombre del espacio
                 string? nombreEspacio = null;
@@ -410,10 +418,17 @@ namespace AquaFlow.Api.Controllers
                     Online = disp.UltimaLectura.HasValue && 
                              disp.UltimaLectura.Value > DateTime.UtcNow.AddMinutes(-5),
                     UltimaLectura = disp.UltimaLectura,
-                    CaudalActual = ultimaLectura?.CaudalLmin ?? 0,
+                    CaudalActual = ultimoEvento?.CaudalPromedio ?? 0,
                     LitrosHoy = litrosHoySensor,
                     LitrosSemana = litrosSemanaSensor,
-                    LitrosMes = litrosMesSensor
+                    LitrosMes = litrosMesSensor,
+                    UltimosEventos = ultimosEventos.Take(5).Select(e => new
+                    {
+                        time = e.Time,
+                        litrosConsumidos = e.LitrosConsumidos,
+                        duracionSegundos = e.DuracionSegundos,
+                        caudalPromedio = e.CaudalPromedio
+                    }).Cast<object>().ToList()
                 });
             }
 
@@ -427,6 +442,7 @@ namespace AquaFlow.Api.Controllers
             {
                 var sensoresEspacio = sensoresStatus.Where(s => s.EspacioId == espacio.Id).ToList();
                 var litrosEspacioHoy = sensoresEspacio.Sum(s => s.LitrosHoy);
+                var litrosEspacioSemana = sensoresEspacio.Sum(s => s.LitrosSemana);
 
                 consumosPorEspacio.Add(new ConsumoEspacioDto
                 {
@@ -434,7 +450,7 @@ namespace AquaFlow.Api.Controllers
                     NombreEspacio = espacio.Etiqueta,
                     TipoEspacio = espacio.Tipo.ToString(),
                     LitrosHoy = litrosEspacioHoy,
-                    LitrosSemana = sensoresEspacio.Sum(s => s.LitrosSemana),
+                    LitrosSemana = litrosEspacioSemana,
                     Porcentaje = litrosHoy > 0 ? (litrosEspacioHoy / litrosHoy) * 100 : 0
                 });
             }
@@ -444,10 +460,15 @@ namespace AquaFlow.Api.Controllers
                 ColegioId = colegioId,
                 NombreColegio = colegio.Nombre,
                 LitrosHoy = litrosHoy,
+                LitrosAyer = 0, // TODO: calcular con eventos de ayer
                 LitrosSemana = litrosSemana,
                 LitrosMes = litrosMes,
+                PromedioMensual = litrosMes / 30.0,
+                VariacionPorcentaje = 0, // TODO: calcular variación
                 Sensores = sensoresStatus,
-                ConsumosPorEspacio = consumosPorEspacio.OrderByDescending(c => c.LitrosHoy).ToList()
+                ConsumosPorEspacio = consumosPorEspacio.OrderByDescending(c => c.LitrosHoy).ToList(),
+                TotalEventosHoy = totalEventosHoy,
+                TotalEventosSemana = totalEventosSemana
             });
         }
 

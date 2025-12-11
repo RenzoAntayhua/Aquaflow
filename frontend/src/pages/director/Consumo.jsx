@@ -77,7 +77,7 @@ export default function DirectorConsumo() {
       )}
 
       {/* KPIs Principales */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white rounded-xl border shadow-sm p-5">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center text-2xl">
@@ -116,6 +116,20 @@ export default function DirectorConsumo() {
                 {consumo ? formatLitros(consumo.litrosMes) : '---'}
               </div>
               <div className="text-xs text-slate-400">Este Mes</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-xl border shadow-sm p-5">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center text-2xl">
+              🚿
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-slate-800">
+                {consumo?.totalEventosHoy || 0}
+              </div>
+              <div className="text-xs text-slate-400">Usos Hoy</div>
             </div>
           </div>
         </div>
@@ -218,8 +232,18 @@ export default function DirectorConsumo() {
       {/* Últimos Eventos de Uso */}
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
         <div className="p-5 border-b flex items-center justify-between">
-          <h2 className="font-semibold text-slate-800">📋 Últimos Eventos de Uso</h2>
-          <span className="text-xs text-slate-400">Cada registro = 1 vez que se usó el agua</span>
+          <div>
+            <h2 className="font-semibold text-slate-800">📋 Últimos Eventos de Uso</h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Cada registro = 1 vez que se usó el agua (desde que se abre hasta que se cierra el grifo)
+            </p>
+          </div>
+          {consumo?.totalEventosHoy > 0 && (
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-600">{consumo.totalEventosHoy}</div>
+              <div className="text-xs text-slate-400">eventos hoy</div>
+            </div>
+          )}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -229,26 +253,42 @@ export default function DirectorConsumo() {
                 <th className="text-left p-4 font-medium text-slate-600">Espacio</th>
                 <th className="text-right p-4 font-medium text-slate-600">Litros</th>
                 <th className="text-right p-4 font-medium text-slate-600">Duración</th>
+                <th className="text-right p-4 font-medium text-slate-600">Caudal Prom.</th>
                 <th className="text-right p-4 font-medium text-slate-600">Hora</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {consumo?.sensores?.flatMap(s => 
-                (s.ultimosEventos || []).map((ev, i) => ({...ev, sensorNombre: s.sensorId, espacioNombre: s.nombreEspacio}))
-              ).slice(0, 10).map((evento, i) => (
+                (s.ultimosEventos || []).map((ev, i) => ({
+                  ...ev, 
+                  sensorNombre: s.sensorId || s.nombreDispositivo, 
+                  espacioNombre: s.nombreEspacio
+                }))
+              ).slice(0, 20).map((evento, i) => (
                 <tr key={i} className="hover:bg-slate-50">
-                  <td className="p-4 font-mono text-xs">{evento.sensorNombre || evento.sensorId}</td>
+                  <td className="p-4 font-mono text-xs">{evento.sensorNombre || '-'}</td>
                   <td className="p-4">{evento.espacioNombre || '-'}</td>
-                  <td className="p-4 text-right font-medium text-blue-600">{evento.litrosConsumidos?.toFixed(2)} L</td>
-                  <td className="p-4 text-right">{evento.duracionSegundos}s</td>
+                  <td className="p-4 text-right font-medium text-blue-600">
+                    {evento.litrosConsumidos ? evento.litrosConsumidos.toFixed(2) : '0.00'} L
+                  </td>
+                  <td className="p-4 text-right">{evento.duracionSegundos || 0}s</td>
+                  <td className="p-4 text-right text-slate-500">
+                    {evento.caudalPromedio ? evento.caudalPromedio.toFixed(1) : '0.0'} L/min
+                  </td>
                   <td className="p-4 text-right text-slate-400">
-                    {evento.time ? new Date(evento.time).toLocaleTimeString() : '-'}
+                    {evento.time ? new Date(evento.time).toLocaleTimeString('es-PE', { 
+                      hour: '2-digit', 
+                      minute: '2-digit',
+                      second: '2-digit'
+                    }) : '-'}
                   </td>
                 </tr>
               )) || (
                 <tr>
-                  <td colSpan="5" className="p-8 text-center text-slate-400">
-                    No hay eventos registrados aún
+                  <td colSpan="6" className="p-8 text-center text-slate-400">
+                    <div className="text-4xl mb-2">🚿</div>
+                    <p>No hay eventos registrados aún</p>
+                    <p className="text-sm mt-1">Los eventos aparecerán cuando los sensores detecten uso de agua</p>
                   </td>
                 </tr>
               )}
