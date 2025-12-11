@@ -48,6 +48,10 @@ export async function getRetosAula({ aulaId }) {
   return apiFetch(`/api/aulas/${aulaId}/retos`)
 }
 
+export async function getMisRetos() {
+  return apiFetch(`/api/aulas/mis-retos`)
+}
+
 export async function actualizarEstadoReto({ retoId, estado }) {
   return apiFetch(`/api/retos/${retoId}/estado`, { method: 'PUT', body: { estado } })
 }
@@ -290,14 +294,25 @@ export async function solicitarReset(email) {
   return res.json()
 }
 
+export async function solicitarResetPassword({ email }) {
+  return solicitarReset(email)
+}
+
 export async function confirmarReset(token, newPassword) {
   const res = await fetch(`${BASE_URL}/auth/password/reset/confirmar`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, newPassword })
   })
-  if (!res.ok) throw new Error('Error al confirmar reset')
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.mensaje || 'Token inválido o expirado')
+  }
   return res.json()
+}
+
+export async function confirmarResetPassword({ token, newPassword }) {
+  return confirmarReset(token, newPassword)
 }
 
 export async function cambiarPassword({ actual, nueva }, token) {
@@ -388,4 +403,69 @@ export async function directorAuditoria({ tipo, desde, hasta, limit = 100, offse
   if (offset) params.set('offset', String(offset))
   const qs = params.toString()
   return apiFetch(`/api/director/auditoria${qs ? `?${qs}` : ''}`)
+}
+
+// ========================================
+// Sensores / Dispositivos IoT
+// ========================================
+
+// Obtener lista de sensores/dispositivos de un colegio
+export async function getSensoresColegio({ colegioId }) {
+  return apiFetch(`/api/sensores/colegio/${colegioId}`)
+}
+
+// Obtener datos históricos de un sensor
+export async function getSensorData({ sensorId, timeRange = '-1h' }) {
+  return apiFetch(`/api/sensores/${sensorId}/data?timeRange=${timeRange}`)
+}
+
+// Obtener resumen de consumo de un colegio
+export async function getConsumoColegio({ colegioId }) {
+  return apiFetch(`/api/sensores/consumo/colegio/${colegioId}`)
+}
+
+// Registrar nuevo dispositivo IoT
+export async function registrarDispositivo({ nombre, sensorId, tipoSensor = 'YF-S201', espacioId, descripcion }) {
+  return apiFetch(`/api/sensores/dispositivos`, {
+    method: 'POST',
+    body: { nombre, sensorId, tipoSensor, espacioId, descripcion }
+  })
+}
+
+// Obtener un dispositivo por ID
+export async function getDispositivo({ id }) {
+  return apiFetch(`/api/sensores/dispositivos/${id}`)
+}
+
+// Regenerar API Key de un dispositivo
+export async function regenerarApiKeyDispositivo({ id }) {
+  return apiFetch(`/api/sensores/dispositivos/${id}/regenerar-key`, { method: 'POST' })
+}
+
+// Cambiar estado de un dispositivo (activo/inactivo)
+export async function cambiarEstadoDispositivo({ id, estado }) {
+  return apiFetch(`/api/sensores/dispositivos/${id}/estado`, {
+    method: 'PATCH',
+    body: { estado }
+  })
+}
+
+// Eliminar dispositivo
+export async function eliminarDispositivo({ id }) {
+  const token = localStorage.getItem('token')
+  const res = await fetch(`${BASE_URL}/api/sensores/dispositivos/${id}`, {
+    method: 'DELETE',
+    headers: { 'Authorization': `Bearer ${token}` }
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.mensaje || err.error || 'Error al eliminar dispositivo')
+  }
+  return true
+}
+
+// Ping de sensores (health check)
+export async function pingSensores() {
+  const res = await fetch(`${BASE_URL}/api/sensores/ping`)
+  return res.json()
 }

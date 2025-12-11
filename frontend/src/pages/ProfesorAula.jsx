@@ -1,244 +1,410 @@
 import { useEffect, useState } from 'react'
-import { useParams, Navigate, useLocation } from 'react-router-dom'
-import KPI from '../components/KPI'
-import { getConsumoAgregado, getPlantillasRetos, crearRetoAula, getRetosAula, crearPregunta, listarPreguntas, getEstudiantesAula } from '../lib/api'
+import { useParams, Navigate, useNavigate } from 'react-router-dom'
+import { getConsumoAgregado, getPlantillasRetos, getRetosAula, getEstudiantesAula, getPerfilEstudiantesAula, getEventosAula } from '../lib/api'
 import { useAuth } from '../context/AuthContext'
-import { useToast } from '../context/ToastContext'
 
 export default function ProfesorAula() {
   const { aulaId } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  
+  const [loading, setLoading] = useState(true)
   const [consumo, setConsumo] = useState(null)
   const [plantillas, setPlantillas] = useState([])
   const [retos, setRetos] = useState([])
-  const [estudiantesCount, setEstudiantesCount] = useState(0)
-  
-  const [pSel, setPSel] = useState('')
-  const [inicio, setInicio] = useState('')
-  const [fin, setFin] = useState('')
-  const [error, setError] = useState(null)
-  const { user } = useAuth()
-  const location = useLocation()
-  const params = new URLSearchParams(location.search)
-  const tab = params.get('tab') || 'aula'
-
-  const [texto, setTexto] = useState('')
-  const [tipo, setTipo] = useState('trivia')
-  const [opciones, setOpciones] = useState('')
-  const [correcta, setCorrecta] = useState('')
-  const [categoria, setCategoria] = useState('')
-  const [dificultad, setDificultad] = useState('facil')
-  const [preguntas, setPreguntas] = useState([])
-  const [bancoId, setBancoId] = useState('')
-  const toast = useToast()
+  const [estudiantes, setEstudiantes] = useState([])
+  const [perfiles, setPerfiles] = useState([])
+  const [eventos, setEventos] = useState([])
 
   if (user?.requiereCambioPassword) {
     return <Navigate to="/password-change" replace />
   }
 
   useEffect(() => {
-    getConsumoAgregado({ aulaId, periodo: 'semana' }).then(setConsumo).catch(setError)
-    getPlantillasRetos().then(setPlantillas).catch(setError)
-    getRetosAula({ aulaId }).then(setRetos).catch(() => {})
-    getEstudiantesAula({ aulaId }).then(l => setEstudiantesCount(Array.isArray(l) ? l.length : 0)).catch(() => {})
-    
+    async function load() {
+      try {
+        const [consumoData, plantillasData, retosData, estudiantesData, perfilesData, eventosData] = await Promise.all([
+          getConsumoAgregado({ aulaId, periodo: 'semana' }).catch(() => null),
+          getPlantillasRetos().catch(() => []),
+          getRetosAula({ aulaId }).catch(() => []),
+          getEstudiantesAula({ aulaId }).catch(() => []),
+          getPerfilEstudiantesAula({ aulaId }).catch(() => []),
+          getEventosAula({ aulaId, limit: 10 }).catch(() => [])
+        ])
+        
+        setConsumo(consumoData)
+        setPlantillas(plantillasData)
+        setRetos(retosData)
+        setEstudiantes(estudiantesData)
+        setPerfiles(perfilesData)
+        setEventos(Array.isArray(eventosData) ? eventosData : [])
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [aulaId])
 
-  useEffect(() => {
-    if (tab === 'trivia') {
-      listarPreguntas({ tipo, categoria, dificultad, activa: true }).then(setPreguntas).catch(() => {})
-    }
-  }, [tab])
+  // Cálculos derivados
+  const retosActivos = retos.filter(r => (r.Estado ?? r.estado) === 0)
+  const retosCompletados = retos.filter(r => (r.Estado ?? r.estado) === 2)
+  const triviasActivas = retosActivos.filter(r => {
+    const p = plantillas.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
+    const codigo = p ? (p.Codigo || p.codigo || '') : ''
+    return codigo.includes('trivia') || codigo.includes('verdadero_falso')
+  })
 
-  async function crearReto() {
-    try {
-      if (!pSel || !inicio || !fin) throw new Error('Completa plantilla y fechas')
-      await crearRetoAula({ aulaId, plantillaId: Number(pSel), fechaInicio: inicio, fechaFin: fin })
-      setPSel('')
-      setInicio('')
-      setFin('')
-      const lista = await getRetosAula({ aulaId })
-      setRetos(lista)
-      toast?.show('Reto creado', 'success')
-    } catch (e) {
-      setError(e.message)
-      toast?.show(e.message, 'error')
-    }
-  }
+  // Top estudiantes por monedas
+  const topEstudiantes = [...perfiles]
+    .sort((a, b) => (b.monedasTotal || 0) - (a.monedasTotal || 0))
+    .slice(0, 5)
 
-  async function guardarPregunta() {
-    try {
-      const creadorId = user?.Id || user?.id
-      const colegioId = user?.ColegioId || user?.colegioId || null
-      const opts = tipo === 'trivia' ? opciones.split(';').map(s => s.trim()).filter(Boolean) : []
-      if (!texto || !tipo || !correcta) throw new Error('Completa texto, tipo y respuesta')
-      await crearPregunta({ texto, tipo, opciones: opts, respuestaCorrecta: correcta, categoria, dificultad, creadorId, colegioId })
-      setTexto('')
-      setOpciones('')
-      setCorrecta('')
-      listarPreguntas({ tipo, categoria, dificultad, activa: true }).then(setPreguntas).catch(() => {})
-      toast?.show('Pregunta guardada', 'success')
-    } catch (e) {
-      setError(e.message)
-      toast?.show(e.message, 'error')
-    }
+  // Nivel promedio del aula
+  const nivelPromedio = perfiles.length > 0
+    ? perfiles.reduce((acc, p) => acc + (p.monedasTotal || 0), 0) / perfiles.length
+    : 0
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando dashboard...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="grid gap-4">
-      <h1 className="text-xl font-semibold">Panel del Profesor (Aula {aulaId})</h1>
-      {error && <div className="text-red-600">{String(error)}</div>}
-      {tab === 'aula' && consumo && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 place-items-center">
-          <div className="w-full max-w-sm"><KPI title="Litros (semana)" value={Math.round(consumo.totalLitros)} /></div>
-          <div className="w-full max-w-sm"><KPI title="Línea base" value={consumo.lineaBase} /></div>
-          <div className="w-full max-w-sm"><KPI title="Reducción" value={`${consumo.reduccionPct}%`} /></div>
-        </div>
-      )}
-      {tab === 'aula' && (() => {
-        const activos = retos.filter(r => (r.Estado === 0 || r.estado === 0))
-        const triviasActivas = activos.filter(r => {
-          const p = plantillas.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
-          const codigo = p ? (p.Codigo || p.codigo || '') : ''
-          return String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
-        }).length
-        return (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 place-items-center">
-            <div className="w-full max-w-sm"><KPI title="Estudiantes" value={estudiantesCount} /></div>
-            <div className="w-full max-w-sm"><KPI title="Retos activos" value={activos.length} /></div>
-            <div className="w-full max-w-sm"><KPI title="Retos completados" value={retos.filter(r => (r.Estado === 2 || r.estado === 2)).length} /></div>
-            <div className="w-full max-w-sm"><KPI title="Trivias activas" value={triviasActivas} /></div>
-          </div>
-        )
-      })()}
-      {tab === 'retos' && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-card rounded-xl border p-6 shadow">
-            <div className="text-sm text-slate-600 mb-3">Crear reto desde plantilla</div>
-            <div className="space-y-3">
+    <div className="space-y-6">
+      {/* Header del aula */}
+      <div className="bg-gradient-to-r from-primary via-primary-light to-blue-400 rounded-2xl p-6 text-white shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">
+                📚
+              </div>
               <div>
-                <label className="text-sm">Plantilla</label>
-                <select className="h-10 w-full rounded-md border px-3 text-sm" value={pSel} onChange={e => setPSel(e.target.value)}>
-                  <option value="">Selecciona</option>
-                  {plantillas.map(p => (
-                    <option key={p.Id || p.id} value={p.Id || p.id}>{p.Nombre || p.nombre}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">Inicio</label>
-                  <input type="date" className="h-10 w-full rounded-md border px-3 text-sm" value={inicio} onChange={e => setInicio(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm">Fin</label>
-                  <input type="date" className="h-10 w-full rounded-md border px-3 text-sm" value={fin} onChange={e => setFin(e.target.value)} />
-                </div>
-              </div>
-              <button className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm" onClick={crearReto}>Crear</button>
-              {error && <div className="text-red-700 text-sm">{error}</div>}
-            </div>
-          </div>
-          <div className="bg-card rounded-xl border p-6 shadow">
-            <div className="text-sm text-slate-600 mb-3">Retos del aula</div>
-            <div className="border rounded-md">
-              <div className="grid grid-cols-4 text-xs font-medium text-slate-500 px-3 py-2 border-b">
-                <div>Plantilla</div>
-                <div>Inicio</div>
-                <div>Fin</div>
-                <div>Estado</div>
-              </div>
-              {retos.map((r, i) => (
-                <div key={r.Id || r.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>
-                  <div className="grid grid-cols-4 items-center">
-                    <div>{r.PlantillaId || r.plantillaId}</div>
-                    <div>{String(r.FechaInicio || r.fechaInicio).slice(0,10)}</div>
-                    <div>{String(r.FechaFin || r.fechaFin).slice(0,10)}</div>
-                    <div>{r.Estado === 0 ? 'Activo' : r.Estado === 1 ? 'Finalizado' : 'Pendiente'}</div>
-                  </div>
-                </div>
-              ))}
-              {retos.length === 0 && (
-                <div className="px-3 py-2 text-sm text-slate-500">No hay retos creados</div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-      {tab === 'trivia' && (
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-card rounded-xl border p-6 shadow">
-            <div className="text-sm text-slate-600 mb-3">Crear pregunta</div>
-            <div className="space-y-3">
-              <div>
-                <label className="text-sm">Texto</label>
-                <input className="h-10 w-full rounded-md border px-3 text-sm" value={texto} onChange={e => setTexto(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">Tipo</label>
-                  <select className="h-10 w-full rounded-md border px-3 text-sm" value={tipo} onChange={e => setTipo(e.target.value)}>
-                    <option value="trivia">Trivia</option>
-                    <option value="verdadero_falso">Verdadero/Falso</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-sm">Dificultad</label>
-                  <select className="h-10 w-full rounded-md border px-3 text-sm" value={dificultad} onChange={e => setDificultad(e.target.value)}>
-                    <option value="facil">Fácil</option>
-                    <option value="media">Media</option>
-                    <option value="dificil">Difícil</option>
-                  </select>
-                </div>
-              </div>
-              {tipo === 'trivia' && (
-                <div>
-                  <label className="text-sm">Opciones (; separadas)</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={opciones} onChange={e => setOpciones(e.target.value)} />
-                </div>
-              )}
-              <div>
-                <label className="text-sm">Respuesta correcta</label>
-                <input className="h-10 w-full rounded-md border px-3 text-sm" value={correcta} onChange={e => setCorrecta(e.target.value)} />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-sm">Categoría</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={categoria} onChange={e => setCategoria(e.target.value)} />
-                </div>
-                <div>
-                  <label className="text-sm">Banco (opcional)</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={bancoId} onChange={e => setBancoId(e.target.value)} />
-                </div>
-              </div>
-              <button className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm" onClick={guardarPregunta}>Guardar pregunta</button>
-            </div>
-            <div className="mt-6">
-              <div className="text-sm text-slate-600 mb-2">Preguntas</div>
-              <div className="border rounded-md">
-                {preguntas.map((p, i) => (
-                  <div key={p.Id || p.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>{p.Texto || p.texto}</div>
-                ))}
-                {preguntas.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-slate-500">Sin preguntas</div>
-                )}
+                <h1 className="text-2xl font-bold">Aula {aulaId}</h1>
+                <p className="text-white/80 text-sm">Panel del Profesor</p>
               </div>
             </div>
           </div>
           
+          <div className="flex flex-wrap gap-3">
+            <button
+              onClick={() => navigate(`/profesor/aula/${aulaId}/estudiantes`)}
+              className="h-10 px-4 rounded-lg bg-white/20 hover:bg-white/30 text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              👥 Estudiantes
+            </button>
+            <button
+              onClick={() => navigate(`/profesor/aula/${aulaId}/retos`)}
+              className="h-10 px-4 rounded-lg bg-white text-primary text-sm font-medium transition-colors flex items-center gap-2 hover:bg-white/90"
+            >
+              🎯 Gestionar Retos
+            </button>
+          </div>
         </div>
-      )}
-      {tab === 'insignias' && (
-        <div className="bg-card rounded-xl border p-6 shadow">
-          <div className="text-sm text-slate-600">Validación de insignias (placeholder)</div>
-          <p className="text-sm">Revisa solicitudes de insignias y confirma evidencia.</p>
+      </div>
+
+      {/* KPIs principales */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-card rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-2xl">
+              👥
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-title">{estudiantes.length}</div>
+              <div className="text-sm text-muted-foreground">Estudiantes</div>
+            </div>
+          </div>
         </div>
-      )}
-      {tab === 'reportes' && (
-        <div className="bg-card rounded-xl border p-6 shadow">
-          <div className="text-sm text-slate-600">Reportes del aula (placeholder)</div>
-          <p className="text-sm">Descarga y visualiza reportes semanales y mensuales.</p>
+
+        <div className="bg-card rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-eco/20 flex items-center justify-center text-2xl">
+              🎯
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-eco">{retosActivos.length}</div>
+              <div className="text-sm text-muted-foreground">Retos activos</div>
+            </div>
+          </div>
         </div>
-      )}
+
+        <div className="bg-card rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-gold/20 flex items-center justify-center text-2xl">
+              🏆
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-amber-600">{retosCompletados.length}</div>
+              <div className="text-sm text-muted-foreground">Completados</div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card rounded-xl border p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center text-2xl">
+              ❓
+            </div>
+            <div>
+              <div className="text-3xl font-bold text-purple-600">{triviasActivas.length}</div>
+              <div className="text-sm text-muted-foreground">Trivias activas</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Consumo de agua */}
+        <div className="lg:col-span-2 bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b bg-info-card/50">
+            <h2 className="font-semibold text-title flex items-center gap-2">
+              <span className="text-xl">💧</span>
+              Consumo de Agua (Semanal)
+            </h2>
+          </div>
+          
+          {consumo ? (
+            <div className="p-5">
+              <div className="grid grid-cols-3 gap-4 mb-6">
+                <div className="text-center p-4 bg-soft-divider rounded-xl">
+                  <div className="text-2xl font-bold text-primary">{Math.round(consumo.totalLitros)}L</div>
+                  <div className="text-xs text-muted-foreground">Total consumido</div>
+                </div>
+                <div className="text-center p-4 bg-soft-divider rounded-xl">
+                  <div className="text-2xl font-bold text-title">{consumo.lineaBase}L</div>
+                  <div className="text-xs text-muted-foreground">Línea base</div>
+                </div>
+                <div className="text-center p-4 bg-eco/10 rounded-xl">
+                  <div className={`text-2xl font-bold ${consumo.reduccionPct >= 0 ? 'text-eco' : 'text-coral'}`}>
+                    {consumo.reduccionPct >= 0 ? '↓' : '↑'} {Math.abs(consumo.reduccionPct)}%
+                  </div>
+                  <div className="text-xs text-muted-foreground">Variación</div>
+                </div>
+              </div>
+
+              {/* Gráfico simple de barras */}
+              <div className="space-y-2">
+                <div className="text-sm text-muted-foreground mb-3">Últimos 7 días</div>
+                <div className="flex items-end justify-between gap-2 h-32">
+                  {(consumo.serie || []).slice(-7).map((d, i) => {
+                    const maxLitros = Math.max(...(consumo.serie || []).map(x => x.litros || 0), 1)
+                    const height = ((d.litros || 0) / maxLitros) * 100
+                    return (
+                      <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                        <div 
+                          className="w-full bg-primary/80 rounded-t-md hover:bg-primary transition-colors"
+                          style={{ height: `${height}%`, minHeight: '4px' }}
+                          title={`${d.litros}L`}
+                        />
+                        <span className="text-xs text-muted-foreground">
+                          {new Date(d.fecha).toLocaleDateString('es', { weekday: 'short' }).slice(0, 2)}
+                        </span>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <div className="text-4xl mb-3">📊</div>
+              <p className="text-muted-foreground">Sin datos de consumo disponibles</p>
+            </div>
+          )}
+        </div>
+
+        {/* Top estudiantes */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b bg-gold/10">
+            <h2 className="font-semibold text-title flex items-center gap-2">
+              <span className="text-xl">🏅</span>
+              Top Estudiantes
+            </h2>
+          </div>
+          
+          <div className="divide-y">
+            {topEstudiantes.length > 0 ? (
+              topEstudiantes.map((est, i) => (
+                <div key={est.usuarioId || i} className="p-4 flex items-center gap-3 hover:bg-soft-divider/50 transition-colors">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                    i === 0 ? 'bg-gold text-amber-900' :
+                    i === 1 ? 'bg-gray-200 text-gray-700' :
+                    i === 2 ? 'bg-amber-600/20 text-amber-700' :
+                    'bg-soft-divider text-muted-foreground'
+                  }`}>
+                    {i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-title text-sm truncate">{est.nombre}</div>
+                    <div className="text-xs text-muted-foreground">{est.nivelActual || 'Explorador'}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-primary">{est.monedasTotal || 0}</div>
+                    <div className="text-xs text-muted-foreground">monedas</div>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="p-8 text-center">
+                <div className="text-4xl mb-3">👥</div>
+                <p className="text-muted-foreground text-sm">Sin estudiantes aún</p>
+              </div>
+            )}
+          </div>
+          
+          {perfiles.length > 5 && (
+            <div className="p-3 border-t">
+              <button
+                onClick={() => navigate(`/profesor/aula/${aulaId}/estudiantes`)}
+                className="w-full text-sm text-primary hover:underline"
+              >
+                Ver todos →
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6">
+        {/* Retos activos */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b flex items-center justify-between">
+            <h2 className="font-semibold text-title flex items-center gap-2">
+              <span className="text-xl">🎯</span>
+              Retos Activos
+            </h2>
+            <button
+              onClick={() => navigate(`/profesor/aula/${aulaId}/retos`)}
+              className="text-sm text-primary hover:underline"
+            >
+              Ver todos
+            </button>
+          </div>
+          
+          <div className="divide-y">
+            {retosActivos.length > 0 ? (
+              retosActivos.slice(0, 4).map((r, i) => {
+                const p = plantillas.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
+                const nombre = p?.Nombre || p?.nombre || `Reto #${r.Id || r.id}`
+                const codigo = p?.Codigo || p?.codigo || ''
+                let icon = '🎯'
+                if (codigo.includes('trivia')) icon = '❓'
+                if (codigo.includes('verdadero_falso')) icon = '✅'
+                
+                return (
+                  <div key={r.Id || r.id} className="p-4 flex items-center gap-3 hover:bg-soft-divider/50 transition-colors">
+                    <div className="w-10 h-10 rounded-lg bg-eco/20 flex items-center justify-center text-xl">
+                      {icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-title text-sm truncate">{nombre}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {String(r.FechaInicio || r.fechaInicio).slice(5, 10)} → {String(r.FechaFin || r.fechaFin).slice(5, 10)}
+                      </div>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-eco/20 text-green-700">
+                      Activo
+                    </span>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="p-8 text-center">
+                <div className="text-4xl mb-3">🎮</div>
+                <p className="text-muted-foreground text-sm mb-4">No hay retos activos</p>
+                <button
+                  onClick={() => navigate(`/profesor/aula/${aulaId}/retos`)}
+                  className="text-sm bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-light transition-colors"
+                >
+                  Crear reto
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Actividad reciente */}
+        <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+          <div className="p-5 border-b">
+            <h2 className="font-semibold text-title flex items-center gap-2">
+              <span className="text-xl">📋</span>
+              Actividad Reciente
+            </h2>
+          </div>
+          
+          <div className="divide-y max-h-[300px] overflow-y-auto">
+            {eventos.length > 0 ? (
+              eventos.map((ev, i) => {
+                const tipo = ev.tipo || ev.Tipo || ''
+                let icon = '📌'
+                let label = tipo
+                if (tipo.includes('reto_completado')) { icon = '🏆'; label = 'Reto completado' }
+                if (tipo.includes('trivia_completada')) { icon = '✅'; label = 'Trivia completada' }
+                if (tipo.includes('insignia')) { icon = '🎖️'; label = 'Insignia otorgada' }
+                
+                return (
+                  <div key={ev.Id || ev.id || i} className="p-4 flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-soft-divider flex items-center justify-center text-lg">
+                      {icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm text-title">{label}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {new Date(ev.CreadoEn || ev.creadoEn).toLocaleDateString('es', { 
+                          day: 'numeric', 
+                          month: 'short',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })
+            ) : (
+              <div className="p-8 text-center">
+                <div className="text-4xl mb-3">📭</div>
+                <p className="text-muted-foreground text-sm">Sin actividad reciente</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Nivel promedio del aula */}
+      <div className="bg-gradient-to-r from-purple-500 to-indigo-600 rounded-xl p-6 text-white shadow-lg">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold mb-1">📈 Progreso del Aula</h3>
+            <p className="text-white/80 text-sm">
+              Promedio de monedas por estudiante: <span className="font-bold">{Math.round(nivelPromedio)}</span>
+            </p>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="text-center">
+              <div className="text-3xl font-bold">{perfiles.filter(p => (p.monedasTotal || 0) >= 200).length}</div>
+              <div className="text-xs text-white/80">Aprendices+</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{perfiles.filter(p => (p.monedasTotal || 0) >= 500).length}</div>
+              <div className="text-xs text-white/80">Guardianes+</div>
+            </div>
+            <div className="text-center">
+              <div className="text-3xl font-bold">{perfiles.filter(p => (p.monedasTotal || 0) >= 1000).length}</div>
+              <div className="text-xs text-white/80">Héroes</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

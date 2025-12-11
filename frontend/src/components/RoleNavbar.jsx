@@ -69,34 +69,35 @@ function buildItemsForRole(rol, { aulaId, colegioId, user }) {
   switch (rol) {
     case 'estudiante':
       return [
-        { label: 'Inicio', to: '/estudiante/inicio' },
-        { label: 'Juegos', to: '/estudiante/juegos' },
-        { label: 'Perfil', to: '/estudiante/perfil' },
-        { label: 'Ranking', to: '/estudiante/ranking' },
-        { label: 'Recibos', to: '/estudiante/recibos' },
+        { label: '🏠 Inicio', to: '/estudiante/inicio' },
+        { label: '🎮 Juegos', to: '/estudiante/juegos' },
+        { label: '👤 Perfil', to: '/estudiante/perfil' },
+        { label: '🏆 Ranking', to: '/estudiante/ranking' },
+        // Recibos removido temporalmente - implementar con datos reales de consumo
       ]
     case 'profesor':
       return [
-        { label: `Aula${defAulaId ? ` ${defAulaId}` : ''}`, to: `/profesor/aula/${defAulaId}` },
-        { label: 'Estudiantes', to: `/profesor/aula/${defAulaId}/estudiantes` },
-        { label: 'Retos (plantillas)', to: `/profesor/aula/${defAulaId}/retos` },
-        { label: 'Reportes', to: `/profesor/aula/${defAulaId}/reportes` },
+        { label: '📊 Dashboard', to: `/profesor/aula/${defAulaId}` },
+        { label: '👥 Estudiantes', to: `/profesor/aula/${defAulaId}/estudiantes` },
+        { label: '🎯 Retos', to: `/profesor/aula/${defAulaId}/retos` },
+        { label: '📈 Reportes', to: `/profesor/aula/${defAulaId}/reportes` },
       ]
     case 'director':
       return [
-        { label: 'Inicio', to: `/director/colegio/${defColegioId}` },
-        { label: 'Aulas', to: `/director/colegio/${defColegioId}/estructura` },
-        { label: 'Profesores', to: `/director/colegio/${defColegioId}/reglas` },
-        { label: 'Espacios', to: `/director/colegio/${defColegioId}/sensores` },
-        { label: 'Auditoría', to: `/director/colegio/${defColegioId}/auditoria` },
+        { label: '🏠 Inicio', to: `/director/colegio/${defColegioId}` },
+        { label: '🏫 Aulas', to: `/director/colegio/${defColegioId}/estructura` },
+        { label: '👥 Profesores', to: `/director/colegio/${defColegioId}/reglas` },
+        { label: '📡 Sensores', to: `/director/colegio/${defColegioId}/sensores` },
+        { label: '📊 Consumo', to: `/director/colegio/${defColegioId}/consumo` },
       ]
     case 'admin':
       return [
-        { label: 'Inicio', to: '/admin' },
-        { label: 'Colegios + Directores', to: '/admin/colegios' },
-        { label: 'Plantillas globales', to: '/admin/plantillas' },
-        { label: 'Sensores y espacios', to: '/admin/sensores' },
-        { label: 'Catálogo y políticas', to: '/admin/catalogo' },
+        { label: '🏠 Inicio', to: '/admin' },
+        { label: '🏫 Colegios', to: '/admin/colegios' },
+        { label: '👥 Usuarios', to: '/admin/usuarios' },
+        { label: '📊 Reportes', to: '/admin/reportes' },
+        { label: '📋 Auditoría', to: '/admin/auditoria' },
+        { label: '⚙️ Config', to: '/admin/config' },
       ]
     default:
       return []

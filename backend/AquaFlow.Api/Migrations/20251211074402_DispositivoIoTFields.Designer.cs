@@ -3,6 +3,7 @@ using System;
 using AquaFlow.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace AquaFlow.Api.Migrations
 {
     [DbContext(typeof(AquaFlowDbContext))]
-    partial class AquaFlowDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251211074402_DispositivoIoTFields")]
+    partial class DispositivoIoTFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

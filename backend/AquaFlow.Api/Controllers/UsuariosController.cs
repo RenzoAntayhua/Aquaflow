@@ -16,18 +16,21 @@ namespace AquaFlow.Api.Controllers
         [HttpGet("{usuarioId:int}/perfil")]
         public async Task<IActionResult> Perfil([FromServices] AquaFlowDbContext db, int usuarioId)
         {
-            var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId && u.Rol == RolUsuario.estudiante);
+            // Proyección para evitar traer datos innecesarios
+            var usuario = await db.Usuarios
+                .Where(u => u.Id == usuarioId && u.Rol == RolUsuario.estudiante)
+                .Select(u => new { u.Id, u.Nombre, u.Email, u.ColegioId })
+                .FirstOrDefaultAsync();
             if (usuario is null) return NotFound(new { mensaje = "Usuario no encontrado" });
 
-            var agg = await db.PerfilEstudianteAggs.FirstOrDefaultAsync(a => a.UsuarioId == usuarioId);
+            // Tracking necesario para posible actualización
+            var agg = await db.PerfilEstudianteAggs.AsTracking().FirstOrDefaultAsync(a => a.UsuarioId == usuarioId);
             var stale = agg is null || (DateTime.UtcNow - agg.UltimaActualizacion).TotalSeconds > 60;
             if (stale)
             {
                 var monedas = await db.Puntos
                     .Where(p => p.UsuarioId == usuarioId)
-                    .Select(p => p.Valor)
-                    .DefaultIfEmpty(0)
-                    .SumAsync();
+                    .SumAsync(p => (int?)p.Valor) ?? 0;
 
                 var juegosCompletados = await db.Eventos
                     .CountAsync(e => e.UsuarioId == usuarioId && (e.Tipo == TipoEvento.reto_completado || e.Tipo == TipoEvento.trivia_completada));
@@ -96,7 +99,7 @@ namespace AquaFlow.Api.Controllers
                 .ToListAsync();
 
             return Ok(new {
-                usuario = new { usuario.Id, usuario.Nombre, usuario.Email, usuario.ColegioId },
+                usuario,
                 monedas = agg!.MonedasTotal,
                 nivelActual = agg.NivelActual,
                 progresoMonedas = agg.ProgresoMonedas,

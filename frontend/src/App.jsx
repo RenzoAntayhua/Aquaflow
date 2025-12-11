@@ -10,12 +10,14 @@ import EstudiantePerfil from './pages/estudiante/Perfil'
 import EstudianteRecibos from './pages/estudiante/Recibos'
 import ProfesorAula from './pages/ProfesorAula'
 import ProfesorRetos from './pages/profesor/Retos'
+import ProfesorRetoPreguntas from './pages/profesor/RetoPreguntas'
 import ProfesorReportes from './pages/profesor/Reportes'
 import ProfesorEstudiantes from './pages/profesor/Estudiantes'
 import DirectorColegio from './pages/DirectorColegio'
 import DirectorEstructura from './pages/director/Estructura'
 import DirectorReglas from './pages/director/Reglas'
 import DirectorSensores from './pages/director/Sensores'
+import DirectorConsumo from './pages/director/Consumo'
 import RequireRole from './components/RequireRole'
 import AdminLayout from './pages/admin/AdminLayout'
 import Home from './pages/admin/Home'
@@ -27,6 +29,7 @@ import Config from './pages/admin/Config'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import PasswordChange from './pages/PasswordChange'
+import PasswordReset from './pages/PasswordReset'
 import RoleNavbar from './components/RoleNavbar'
 import ToastContainer from './components/ToastContainer'
 import { ToastProvider } from './context/ToastContext'
@@ -122,11 +125,13 @@ export default function App() {
             <Route path="/profesor/aula/:aulaId" element={<RequireRole role="profesor"><ProfesorAula /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/estudiantes" element={<RequireRole role="profesor"><ProfesorEstudiantes /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/retos" element={<RequireRole role="profesor"><ProfesorRetos /></RequireRole>} />
+            <Route path="/profesor/aula/:aulaId/retos/:retoId/preguntas" element={<RequireRole role="profesor"><ProfesorRetoPreguntas /></RequireRole>} />
             <Route path="/profesor/aula/:aulaId/reportes" element={<RequireRole role="profesor"><ProfesorReportes /></RequireRole>} />
             <Route path="/director/colegio/:colegioId" element={<RequireRole role="director"><DirectorColegio /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/estructura" element={<RequireRole role="director"><DirectorEstructura /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/reglas" element={<RequireRole role="director"><DirectorReglas /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/sensores" element={<RequireRole role="director"><DirectorSensores /></RequireRole>} />
+            <Route path="/director/colegio/:colegioId/consumo" element={<RequireRole role="director"><DirectorConsumo /></RequireRole>} />
             <Route path="/director/colegio/:colegioId/auditoria" element={<RequireRole role="director"><DirectorColegio /></RequireRole>} />
             <Route path="/admin" element={<AdminLayout />}>
               <Route index element={<Home />} />
@@ -139,6 +144,7 @@ export default function App() {
             </Route>
             <Route path="/login" element={<Login />} />
             <Route path="/password-change" element={<PasswordChange />} />
+            <Route path="/password-reset" element={<PasswordReset />} />
             <Route path="/registro" element={<Register />} />
           </Routes>
         </div>

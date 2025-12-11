@@ -434,6 +434,11 @@ namespace AquaFlow.Api.Controllers
             {
                 if (aula.ProfesorId != actorId) return Forbid();
             }
+            else if (rol == "estudiante")
+            {
+                var inscrito = await db.Inscripciones.AnyAsync(i => i.AulaId == aulaId && i.EstudianteId == actorId);
+                if (!inscrito) return Forbid();
+            }
             else return Forbid();
             var ids = await db.Inscripciones.Where(i => i.AulaId == aulaId).Select(i => i.EstudianteId).ToListAsync();
             var usuarios = await db.Usuarios.Where(u => ids.Contains(u.Id)).Select(u => new { u.Id, u.Nombre, u.Email }).ToListAsync();
@@ -485,6 +490,43 @@ namespace AquaFlow.Api.Controllers
             if (offset < 0) offset = 0;
             var lista = await q.OrderByDescending(e => e.CreadoEn).Skip(offset).Take(limit).Select(e => new { e.Id, tipo = e.Tipo.ToString(), e.Payload, e.CreadoEn, e.UsuarioId }).ToListAsync();
             return Ok(lista);
+        }
+
+        [HttpGet("mis-retos")]
+        public async Task<IActionResult> MisRetos([FromServices] AquaFlowDbContext db)
+        {
+            var rolClaim = User?.FindFirst("rol")?.Value;
+            var userIdClaim = User?.FindFirst("userId")?.Value;
+            if (string.IsNullOrWhiteSpace(rolClaim) || string.IsNullOrWhiteSpace(userIdClaim)) return Unauthorized();
+            if (!int.TryParse(userIdClaim, out var usuarioId)) return Unauthorized();
+            var rol = rolClaim.ToLowerInvariant();
+            if (rol != "estudiante") return Forbid();
+
+            // Obtener las aulas donde está inscrito el estudiante
+            var aulasIds = await db.Inscripciones
+                .Where(i => i.EstudianteId == usuarioId)
+                .Select(i => i.AulaId)
+                .ToListAsync();
+
+            if (aulasIds.Count == 0)
+            {
+                // Devolver lista vacía si no está inscrito en ningún aula
+                return Ok(new { retos = new List<object>(), plantillas = new List<object>() });
+            }
+
+            // Obtener retos activos de esas aulas
+            var retos = await db.RetosAula
+                .Where(r => aulasIds.Contains(r.AulaId) && r.Estado == EstadoReto.activo)
+                .OrderByDescending(r => r.FechaInicio)
+                .ToListAsync();
+
+            // Obtener plantillas relacionadas
+            var plantillaIds = retos.Select(r => r.PlantillaId).Distinct().ToList();
+            var plantillas = await db.PlantillasRetos
+                .Where(p => plantillaIds.Contains(p.Id) || p.Activa)
+                .ToListAsync();
+
+            return Ok(new { retos, plantillas });
         }
     }
 }

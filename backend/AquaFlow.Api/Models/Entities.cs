@@ -102,7 +102,11 @@ namespace AquaFlow.Api.Models
         public int? AulaId { get; set; }
         public TipoDispositivo Tipo { get; set; }
         public string EtiquetaUbicacion { get; set; } = string.Empty;
-        public string? NumeroSerie { get; set; }
+        public string? NumeroSerie { get; set; } // SensorId para InfluxDB
+        public string? ApiKey { get; set; } // API Key para autenticación del ESP32
+        public string? TipoSensor { get; set; } // YF-S201, YF-B1, etc.
+        public string? Descripcion { get; set; }
+        public DateTime? UltimaLectura { get; set; } // Última vez que envió datos
         public string Estado { get; set; } = "activo";
         public DateTime CreadoEn { get; set; } = DateTime.UtcNow;
     }

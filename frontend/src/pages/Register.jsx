@@ -63,7 +63,7 @@ export default function Register() {
   return (
     <div className="min-h-screen w-full flex items-stretch">
       {/* Columna izquierda (solo en lg) con gradiente y elementos flotantes */}
-      <div className="flex w-1/2 bg-gradient-to-br from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-accent)] relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-[var(--color-primary)] via-[var(--color-secondary)] to-[var(--color-accent)] relative overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 text-9xl animate-float">🌊</div>
           <div className="absolute bottom-40 right-20 text-8xl animate-float" style={{ animationDelay: '1s' }}>💧</div>
@@ -82,7 +82,7 @@ export default function Register() {
       </div>
 
       {/* Columna derecha con tarjeta de registro */}
-      <div className="w-1/2 flex items-center justify-center bg-background">
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-background p-4">
         <div className="bg-card text-card-foreground flex flex-col gap-6 rounded-xl border w-full max-w-md p-8 shadow-lg">
           <div className="flex items-center justify-center mb-2 lg:hidden">
             <div className="h-12 w-12 text-primary">💧</div>

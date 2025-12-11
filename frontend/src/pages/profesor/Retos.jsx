@@ -1,242 +1,543 @@
 import { useEffect, useState } from 'react'
-import { useParams, Navigate } from 'react-router-dom'
-import { getPlantillasRetos, crearRetoAula, getRetosAula, actualizarEstadoReto, crearPregunta, listarPreguntas } from '../../lib/api'
+import { useParams, Navigate, useNavigate } from 'react-router-dom'
+import { getPlantillasRetos, crearRetoAula, getRetosAula, actualizarEstadoReto, listarPreguntas } from '../../lib/api'
 import { useAuth } from '../../context/AuthContext'
 import { useToast } from '../../context/ToastContext'
 import { useConfirm } from '../../context/ConfirmContext'
 
 export default function ProfesorRetos() {
   const { aulaId } = useParams()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const toast = useToast()
   const { confirm } = useConfirm() || {}
+
   const [plantillas, setPlantillas] = useState([])
   const [retos, setRetos] = useState([])
-  const [error, setError] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [creando, setCreando] = useState(false)
+  
+  // Modal de creación
+  const [showModal, setShowModal] = useState(false)
   const [pSel, setPSel] = useState('')
-  const [param, setParam] = useState({})
   const [inicio, setInicio] = useState('')
   const [fin, setFin] = useState('')
-  const [texto, setTexto] = useState('')
-  const [opciones, setOpciones] = useState('')
-  const [correcta, setCorrecta] = useState('')
-  const [dificultad, setDificultad] = useState('facil')
-  const [preguntas, setPreguntas] = useState([])
-  const [retoSel, setRetoSel] = useState(null)
-  const [preguntasSel, setPreguntasSel] = useState([])
-  const [requeridasSel, setRequeridasSel] = useState(0)
-  const [readySel, setReadySel] = useState(false)
+  const [param, setParam] = useState({})
+
+  // Estado de preguntas por reto
+  const [preguntasCount, setPreguntasCount] = useState({})
+
+  if (user?.requiereCambioPassword) return <Navigate to="/password-change" replace />
+
   useEffect(() => {
-    getPlantillasRetos().then(setPlantillas).catch(setError)
-    getRetosAula({ aulaId }).then(setRetos).catch(() => {})
+    async function load() {
+      try {
+        const [pl, rt] = await Promise.all([
+          getPlantillasRetos(),
+          getRetosAula({ aulaId })
+        ])
+        setPlantillas(pl)
+        setRetos(rt)
+
+        // Cargar conteo de preguntas para cada reto
+        const counts = {}
+        for (const r of rt) {
+          const p = pl.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
+          if (p) {
+            const codigo = p.Codigo || p.codigo || ''
+            if (codigo.includes('trivia') || codigo.includes('verdadero_falso')) {
+              const tipo = codigo.includes('verdadero_falso') ? 'verdadero_falso' : 'trivia'
+              try {
+                const preguntas = await listarPreguntas({ tipo, categoria: codigo })
+                counts[r.Id || r.id] = Array.isArray(preguntas) ? preguntas.length : 0
+              } catch {
+                counts[r.Id || r.id] = 0
+              }
+            }
+          }
+        }
+        setPreguntasCount(counts)
+      } catch (e) {
+        toast?.show(e.message, 'error')
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [aulaId])
 
-  useEffect(() => {
-    if (!retoSel) { setPreguntasSel([]); return }
-    const pl = plantillas.find(p => String(p.Id || p.id) === String(retoSel.PlantillaId || retoSel.plantillaId))
-    const codigo = pl ? (pl.Codigo || pl.codigo || '') : ''
-    const esTrivia = String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
-    if (!esTrivia) { setPreguntasSel([]); return }
-    const tipoC = String(codigo).includes('verdadero_falso') ? 'verdadero_falso' : 'trivia'
-    listarPreguntas({ tipo: tipoC, categoria: codigo }).then(setPreguntasSel).catch(() => setPreguntasSel([]))
-  }, [retoSel, plantillas])
-
-  function labelParametro(k) {
-    const map = {
-      question_count: 'Cantidad de preguntas',
-      time_per_question: 'Tiempo por pregunta (segundos)',
-      pairs_count: 'Cantidad de parejas',
-      reduccion_porcentual: 'Reducción porcentual'
+  function getPlantillaInfo(r) {
+    const p = plantillas.find(x => String(x.Id || x.id) === String(r.PlantillaId || r.plantillaId))
+    return {
+      nombre: p?.Nombre || p?.nombre || `Plantilla #${r.PlantillaId || r.plantillaId}`,
+      codigo: p?.Codigo || p?.codigo || '',
+      descripcion: p?.Descripcion || p?.descripcion || ''
     }
-    return map[k] || k.replace(/_/g, ' ')
   }
-  if (user?.requiereCambioPassword) return <Navigate to="/password-change" replace />
-  return (
-    <div className="grid gap-4">
-      <h1 className="text-xl font-semibold">Retos desde plantillas (Aula {aulaId})</h1>
-      {error && <div className="text-red-600">{String(error)}</div>}
-      <div className="grid md:grid-cols-2 gap-8">
-        <div className="bg-card rounded-xl border p-8 shadow">
-          <div className="text-sm text-slate-600 mb-3">Crear reto derivado de plantilla</div>
-          <div className="space-y-3">
-            <div>
-              <label className="text-sm">Plantilla</label>
-              <select className="h-10 w-full rounded-md border px-3 text-sm" value={pSel} onChange={e => {
-                const v = e.target.value; setPSel(v); const p = plantillas.find(x => String(x.Id || x.id) === v); try { setParam(p ? JSON.parse(p.ParametrosDefault || p.parametrosDefault || '{}') : {}) } catch { setParam({}) }
-              }}>
-                <option value="">Selecciona</option>
-                {plantillas.map(p => (
-                  <option key={p.Id || p.id} value={p.Id || p.id}>{p.Nombre || p.nombre}</option>
-                ))}
-              </select>
-            </div>
-            {(() => {
-              const p = plantillas.find(x => String(x.Id || x.id) === String(pSel))
-              if (!p) return null
-              let rango = {}
-              try { rango = JSON.parse(p.ParametrosRango || p.parametrosRango || '{}') } catch {}
-              const entries = Object.entries(param)
-              return (
-                <div className="space-y-3">
-                  {entries.map(([k, v]) => (
-                    <div key={k}>
-                      <label className="text-sm">{labelParametro(k)}</label>
-                      <input type="number" className="h-10 w-full rounded-md border px-3 text-sm" value={v} onChange={e => setParam({ ...param, [k]: Number(e.target.value) })} min={rango[k]?.min ?? 0} max={rango[k]?.max ?? 999} />
-                    </div>
-                  ))}
-                </div>
-              )
-            })()}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm">Inicio</label>
-                <input type="date" className="h-10 w-full rounded-md border px-3 text-sm" value={inicio} onChange={e => setInicio(e.target.value)} />
-              </div>
-              <div>
-                <label className="text-sm">Fin</label>
-                <input type="date" className="h-10 w-full rounded-md border px-3 text-sm" value={fin} onChange={e => setFin(e.target.value)} />
-              </div>
-            </div>
-            <button className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm" onClick={async () => {
-              try {
-                if (!pSel || !inicio || !fin) throw new Error('Completa plantilla y fechas')
-                await crearRetoAula({ aulaId, plantillaId: Number(pSel), fechaInicio: inicio, fechaFin: fin, parametros: param })
-                setPSel(''); setInicio(''); setFin(''); setParam({})
-                const lista = await getRetosAula({ aulaId }); setRetos(lista)
-                toast?.show('Reto creado', 'success')
-              } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
-            }}>Crear</button>
-            {error && <div className="text-red-700 text-sm">{error}</div>}
-          </div>
-        </div>
-        <div className="bg-card rounded-xl border p-8 shadow">
-          <div className="text-sm text-slate-600 mb-3">Retos del aula</div>
-          <div className="border rounded-md">
-            <div className="grid grid-cols-5 text-xs font-medium text-slate-500 px-3 py-2 border-b">
-              <div>Plantilla</div>
-              <div>Inicio</div>
-              <div>Fin</div>
-              <div>Estado</div>
-              <div>Acciones</div>
-            </div>
-            {retos.map((r, i) => (
-              <div key={r.Id || r.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>
-                <div className="grid grid-cols-5 items-center">
-                  <div>{r.PlantillaId || r.plantillaId}</div>
-                  <div>{String(r.FechaInicio || r.fechaInicio).slice(0,10)}</div>
-                  <div>{String(r.FechaFin || r.fechaFin).slice(0,10)}</div>
-                  <div>{(r.Estado === 0 || r.estado === 0) ? 'Activo' : (r.Estado === 1 || r.estado === 1) ? 'Pausado' : (r.Estado === 2 || r.estado === 2) ? 'Completado' : 'Fallido'}</div>
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    <button className="text-blue-600" onClick={async () => {
-                      try {
-                        const okConf = confirm ? await confirm('¿Activar este reto?') : window.confirm('¿Activar este reto?')
-                        if (!okConf) return
-                        const pl = plantillas.find(p => String(p.Id || p.id) === String(r.PlantillaId || r.plantillaId))
-                        const codigo = pl ? (pl.Codigo || pl.codigo || '') : ''
-                        const esTrivia = String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
-                        let ok = true
-                        if (esTrivia) {
-                          let req = 0
-                          try { const pars = JSON.parse(r.Parametros || r.parametros || '{}'); req = Number(pars.question_count || pars.cantidad || 0) } catch {}
-                          const tipoC = String(codigo).includes('verdadero_falso') ? 'verdadero_falso' : 'trivia'
-                          const listaPreg = await listarPreguntas({ tipo: tipoC, categoria: codigo })
-                          const cnt = Array.isArray(listaPreg) ? listaPreg.length : 0
-                          ok = cnt >= req && req > 0
-                          if (!ok) throw new Error(`Faltan ${Math.max(0, req - cnt)} preguntas`)
-                        }
-                        await actualizarEstadoReto({ retoId: r.Id || r.id, estado: 'activo' })
-                        const lista = await getRetosAula({ aulaId }); setRetos(lista)
-                        toast?.show('Reto activado', 'success')
-                      } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
-                    }}>Activar</button>
-                    <button className="text-yellow-700" onClick={async () => { const okConf = confirm ? await confirm('¿Pausar este reto?') : window.confirm('¿Pausar este reto?'); if (!okConf) return; await actualizarEstadoReto({ retoId: r.Id || r.id, estado: 'pausado' }); const lista = await getRetosAula({ aulaId }); setRetos(lista); toast?.show('Reto pausado', 'success') }}>Pausar</button>
-                    <button className="text-green-700" onClick={() => setRetoSel(r)}>
-                      Gestionar
-                    </button>
-                    {null}
-                  </div>
-                </div>
-              </div>
-            ))}
-            {retos.length === 0 && (
-              <div className="px-3 py-2 text-sm text-slate-500">No hay retos creados</div>
-            )}
-          </div>
+
+  function getEstado(r) {
+    const e = r.Estado ?? r.estado
+    if (e === 0) return { label: 'Activo', color: 'bg-eco/20 text-green-700', icon: '🟢' }
+    if (e === 1) return { label: 'Pausado', color: 'bg-amber-100 text-amber-700', icon: '🟡' }
+    if (e === 2) return { label: 'Completado', color: 'bg-blue-100 text-blue-700', icon: '🔵' }
+    return { label: 'Fallido', color: 'bg-red-100 text-red-700', icon: '🔴' }
+  }
+
+  function esTrivia(r) {
+    const info = getPlantillaInfo(r)
+    return info.codigo.includes('trivia') || info.codigo.includes('verdadero_falso')
+  }
+
+  function getPreguntasRequeridas(r) {
+    try {
+      const params = JSON.parse(r.Parametros || r.parametros || '{}')
+      return Number(params.question_count || params.cantidad || 5)
+    } catch {
+      return 5
+    }
+  }
+
+  async function crearNuevoReto() {
+    if (!pSel || !inicio || !fin) {
+      toast?.show('Completa todos los campos', 'error')
+      return
+    }
+
+    setCreando(true)
+    try {
+      const result = await crearRetoAula({ 
+        aulaId, 
+        plantillaId: Number(pSel), 
+        fechaInicio: inicio, 
+        fechaFin: fin,
+        parametros: param
+      })
+      
+      const nuevoRetoId = result?.Id || result?.id
+      const lista = await getRetosAula({ aulaId })
+      setRetos(lista)
+      
+      setShowModal(false)
+      setPSel('')
+      setInicio('')
+      setFin('')
+      setParam({})
+      
+      toast?.show('Reto creado correctamente', 'success')
+
+      // Redirigir a la página de preguntas si es trivia
+      const p = plantillas.find(x => String(x.Id || x.id) === String(pSel))
+      const codigo = p?.Codigo || p?.codigo || ''
+      if (codigo.includes('trivia') || codigo.includes('verdadero_falso')) {
+        navigate(`/profesor/aula/${aulaId}/retos/${nuevoRetoId}/preguntas`)
+      }
+    } catch (e) {
+      toast?.show(e.message, 'error')
+    } finally {
+      setCreando(false)
+    }
+  }
+
+  async function cambiarEstado(r, nuevoEstado) {
+    const accion = nuevoEstado === 'activo' ? 'activar' : nuevoEstado === 'pausado' ? 'pausar' : 'completar'
+    const ok = confirm 
+      ? await confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} este reto?`)
+      : window.confirm(`¿${accion.charAt(0).toUpperCase() + accion.slice(1)} este reto?`)
+    
+    if (!ok) return
+
+    try {
+      await actualizarEstadoReto({ retoId: r.Id || r.id, estado: nuevoEstado })
+      const lista = await getRetosAula({ aulaId })
+      setRetos(lista)
+      toast?.show(`Reto ${nuevoEstado}`, 'success')
+    } catch (e) {
+      toast?.show(e.message, 'error')
+    }
+  }
+
+  // Separar retos activos y otros
+  const retosActivos = retos.filter(r => (r.Estado ?? r.estado) === 0)
+  const retosOtros = retos.filter(r => (r.Estado ?? r.estado) !== 0)
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Cargando retos...</p>
         </div>
       </div>
-      {retoSel && (() => {
-        const r = retoSel
-        const pl = plantillas.find(p => String(p.Id || p.id) === String(r.PlantillaId || r.plantillaId))
-        const codigo = pl ? (pl.Codigo || pl.codigo || '') : ''
-        const esTrivia = String(codigo).includes('trivia') || String(codigo).includes('verdadero_falso')
-        if (!esTrivia) return null
-        const tipoC = String(codigo).includes('verdadero_falso') ? 'verdadero_falso' : 'trivia'
-        return (
-          <div className="bg-card rounded-xl border p-8 shadow mt-6">
-            <div className="text-sm text-slate-600 mb-3">Preguntas del reto seleccionado</div>
-            <div className="text-xs text-slate-600 mb-3">Tipo: <span className="font-medium">{tipoC === 'trivia' ? 'Trivia' : 'Verdadero/Falso'}</span> • Categoría: <span className="font-medium">{codigo}</span></div>
-            {(() => {
-              let req = 0
-              try { const pars = JSON.parse(r.Parametros || r.parametros || '{}'); req = Number(pars.question_count || pars.cantidad || 0) } catch {}
-              const required = req
-              const existentes = preguntasSel.length
-              const ok = existentes >= required && required > 0
-              if (requeridasSel !== required) setRequeridasSel(required)
-              if (readySel !== ok) setReadySel(ok)
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-title flex items-center gap-3">
+            <span className="text-3xl">🎯</span>
+            Gestión de Retos
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Crea y administra los retos del aula {aulaId}
+          </p>
+        </div>
+        
+        <button
+          onClick={() => setShowModal(true)}
+          className="bg-primary hover:bg-primary-light text-white h-11 px-6 rounded-lg font-medium transition-colors flex items-center gap-2 self-start md:self-auto"
+        >
+          <span className="text-lg">➕</span>
+          Nuevo Reto
+        </button>
+      </div>
+
+      {/* Estadísticas rápidas */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
+          <div className="text-3xl font-bold text-primary">{retos.length}</div>
+          <div className="text-sm text-muted-foreground">Total de retos</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
+          <div className="text-3xl font-bold text-eco">{retosActivos.length}</div>
+          <div className="text-sm text-muted-foreground">Retos activos</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
+          <div className="text-3xl font-bold text-blue-600">{retos.filter(r => (r.Estado ?? r.estado) === 2).length}</div>
+          <div className="text-sm text-muted-foreground">Completados</div>
+        </div>
+        <div className="bg-card rounded-xl border p-4 shadow-sm">
+          <div className="text-3xl font-bold text-amber-600">{retos.filter(r => (r.Estado ?? r.estado) === 1).length}</div>
+          <div className="text-sm text-muted-foreground">Pausados</div>
+        </div>
+      </div>
+
+      {/* Retos activos */}
+      {retosActivos.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-title mb-4 flex items-center gap-2">
+            <span>🟢</span> Retos Activos
+          </h2>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {retosActivos.map(r => {
+              const info = getPlantillaInfo(r)
+              const estado = getEstado(r)
+              const esT = esTrivia(r)
+              const requeridas = getPreguntasRequeridas(r)
+              const actual = preguntasCount[r.Id || r.id] || 0
+              
               return (
-                <div className="rounded-md border px-3 py-2 text-sm mb-4">Progreso: {existentes} / {required}</div>
+                <div key={r.Id || r.id} className="bg-card rounded-xl border shadow-sm overflow-hidden hover:shadow-md transition-shadow">
+                  <div className="bg-gradient-to-r from-eco/20 to-green-50 p-4 border-b">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-title">{info.nombre}</h3>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{info.descripcion}</p>
+                      </div>
+                      <span className={`text-xs px-2 py-1 rounded-full ${estado.color}`}>
+                        {estado.label}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Período</span>
+                      <span className="font-medium">
+                        {String(r.FechaInicio || r.fechaInicio).slice(5, 10)} → {String(r.FechaFin || r.fechaFin).slice(5, 10)}
+                      </span>
+                    </div>
+                    
+                    {esT && (
+                      <div>
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-muted-foreground">Preguntas</span>
+                          <span className={`font-medium ${actual >= requeridas ? 'text-eco' : 'text-amber-600'}`}>
+                            {actual}/{requeridas}
+                          </span>
+                        </div>
+                        <div className="h-2 bg-soft-divider rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full rounded-full ${actual >= requeridas ? 'bg-eco' : 'bg-amber-500'}`}
+                            style={{ width: `${Math.min(100, (actual / requeridas) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex gap-2 pt-2">
+                      {esT && (
+                        <button
+                          onClick={() => navigate(`/profesor/aula/${aulaId}/retos/${r.Id || r.id}/preguntas`)}
+                          className="flex-1 h-9 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/5 transition-colors"
+                        >
+                          ✏️ Preguntas
+                        </button>
+                      )}
+                      <button
+                        onClick={() => cambiarEstado(r, 'pausado')}
+                        className="h-9 px-3 rounded-lg border text-amber-600 border-amber-200 text-sm hover:bg-amber-50 transition-colors"
+                      >
+                        ⏸️
+                      </button>
+                      <button
+                        onClick={() => cambiarEstado(r, 'completado')}
+                        className="h-9 px-3 rounded-lg border text-blue-600 border-blue-200 text-sm hover:bg-blue-50 transition-colors"
+                      >
+                        ✓
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )
-            })()}
-            <div className="space-y-3">
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Otros retos */}
+      {retosOtros.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-title mb-4 flex items-center gap-2">
+            <span>📋</span> Historial de Retos
+          </h2>
+          <div className="bg-card rounded-xl border shadow-sm overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-soft-divider">
+                <tr className="text-left text-xs text-muted-foreground">
+                  <th className="px-4 py-3 font-medium">Reto</th>
+                  <th className="px-4 py-3 font-medium">Período</th>
+                  <th className="px-4 py-3 font-medium">Estado</th>
+                  <th className="px-4 py-3 font-medium">Acciones</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {retosOtros.map(r => {
+                  const info = getPlantillaInfo(r)
+                  const estado = getEstado(r)
+                  const esT = esTrivia(r)
+                  
+                  return (
+                    <tr key={r.Id || r.id} className="hover:bg-soft-divider/50">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-title text-sm">{info.nombre}</div>
+                        <div className="text-xs text-muted-foreground">{info.codigo}</div>
+                      </td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">
+                        {String(r.FechaInicio || r.fechaInicio).slice(0, 10)} — {String(r.FechaFin || r.fechaFin).slice(0, 10)}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-1 rounded-full ${estado.color}`}>
+                          {estado.icon} {estado.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-2">
+                          {(r.Estado ?? r.estado) === 1 && (
+                            <button
+                              onClick={() => cambiarEstado(r, 'activo')}
+                              className="text-xs text-eco hover:underline"
+                            >
+                              Reactivar
+                            </button>
+                          )}
+                          {esT && (
+                            <button
+                              onClick={() => navigate(`/profesor/aula/${aulaId}/retos/${r.Id || r.id}/preguntas`)}
+                              className="text-xs text-primary hover:underline"
+                            >
+                              Ver preguntas
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Estado vacío */}
+      {retos.length === 0 && (
+        <div className="bg-card rounded-xl border shadow-sm p-12 text-center">
+          <div className="text-6xl mb-4">🎮</div>
+          <h3 className="text-xl font-semibold text-title mb-2">¡Crea tu primer reto!</h3>
+          <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+            Los retos motivan a tus estudiantes a aprender sobre el cuidado del agua mientras ganan puntos y medallas.
+          </p>
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-primary hover:bg-primary-light text-white h-11 px-6 rounded-lg font-medium transition-colors inline-flex items-center gap-2"
+          >
+            <span>➕</span>
+            Crear Reto
+          </button>
+        </div>
+      )}
+
+      {/* Modal de creación */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-card rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-primary to-primary-light p-6">
+              <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                <span className="text-2xl">🎯</span>
+                Nuevo Reto
+              </h2>
+              <p className="text-white/80 text-sm mt-1">Selecciona una plantilla y configura las fechas</p>
+            </div>
+            
+            <div className="p-6 space-y-5">
+              {/* Selector de plantilla */}
               <div>
-                <label className="text-sm">Texto</label>
-                <input className="h-10 w-full rounded-md border px-3 text-sm" value={texto} onChange={e => setTexto(e.target.value)} />
+                <label className="block text-sm font-medium text-title mb-2">
+                  Tipo de reto
+                </label>
+                <div className="grid gap-2">
+                  {plantillas.filter(p => p.Activa !== false && p.activa !== false).map(p => {
+                    const codigo = p.Codigo || p.codigo || ''
+                    const isSelected = String(pSel) === String(p.Id || p.id)
+                    let icon = '🎯'
+                    if (codigo.includes('trivia')) icon = '❓'
+                    if (codigo.includes('verdadero_falso')) icon = '✅'
+                    if (codigo.includes('memoria')) icon = '🧠'
+                    
+                    return (
+                      <button
+                        key={p.Id || p.id}
+                        type="button"
+                        onClick={() => {
+                          setPSel(String(p.Id || p.id))
+                          try {
+                            setParam(JSON.parse(p.ParametrosDefault || p.parametrosDefault || '{}'))
+                          } catch {
+                            setParam({})
+                          }
+                        }}
+                        className={`p-4 rounded-lg border-2 text-left transition-all ${
+                          isSelected 
+                            ? 'border-primary bg-primary/5' 
+                            : 'border-input hover:border-primary/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">{icon}</span>
+                          <div>
+                            <div className="font-medium text-title">{p.Nombre || p.nombre}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-1">
+                              {p.Descripcion || p.descripcion || codigo}
+                            </div>
+                          </div>
+                          {isSelected && (
+                            <div className="ml-auto w-6 h-6 rounded-full bg-primary text-white flex items-center justify-center">
+                              ✓
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
-              {tipoC === 'trivia' && (
+
+              {/* Parámetros configurables */}
+              {pSel && Object.keys(param).length > 0 && (
                 <div>
-                  <label className="text-sm">Opciones (; separadas)</label>
-                  <input className="h-10 w-full rounded-md border px-3 text-sm" value={opciones} onChange={e => setOpciones(e.target.value)} />
+                  <label className="block text-sm font-medium text-title mb-2">
+                    Configuración
+                  </label>
+                  <div className="grid gap-3">
+                    {Object.entries(param).map(([k, v]) => {
+                      const p = plantillas.find(x => String(x.Id || x.id) === String(pSel))
+                      let rango = {}
+                      try { rango = JSON.parse(p?.ParametrosRango || p?.parametrosRango || '{}') } catch {}
+                      const label = {
+                        question_count: 'Cantidad de preguntas',
+                        time_per_question: 'Segundos por pregunta',
+                        reduccion_porcentual: 'Meta de reducción (%)'
+                      }[k] || k.replace(/_/g, ' ')
+                      
+                      return (
+                        <div key={k} className="flex items-center gap-3">
+                          <label className="text-sm text-muted-foreground flex-1">{label}</label>
+                          <input
+                            type="number"
+                            className="w-24 h-10 rounded-lg border border-input px-3 text-center"
+                            value={v}
+                            min={rango[k]?.min ?? 1}
+                            max={rango[k]?.max ?? 100}
+                            onChange={e => setParam({ ...param, [k]: Number(e.target.value) })}
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )}
-              <div>
-                <label className="text-sm">Respuesta correcta</label>
-                <input className="h-10 w-full rounded-md border px-3 text-sm" value={correcta} onChange={e => setCorrecta(e.target.value)} />
+
+              {/* Fechas */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-title mb-2">
+                    Fecha inicio
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full h-11 rounded-lg border border-input px-3"
+                    value={inicio}
+                    onChange={e => setInicio(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-title mb-2">
+                    Fecha fin
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full h-11 rounded-lg border border-input px-3"
+                    value={fin}
+                    onChange={e => setFin(e.target.value)}
+                  />
+                </div>
               </div>
-              <div>
-                <label className="text-sm">Dificultad</label>
-                <select className="h-10 w-full rounded-md border px-3 text-sm" value={dificultad} onChange={e => setDificultad(e.target.value)}>
-                  <option value="facil">Fácil</option>
-                  <option value="media">Media</option>
-                  <option value="dificil">Difícil</option>
-                </select>
-              </div>
-              <button className="bg-primary text-primary-foreground h-10 rounded-md px-4 text-sm" onClick={async () => {
-                try {
-                  const creadorId = user?.Id || user?.id
-                  const colegioId = user?.ColegioId || user?.colegioId || null
-                  const opts = tipoC === 'trivia' ? opciones.split(';').map(s => s.trim()).filter(Boolean) : []
-                  if (!texto || !correcta) throw new Error('Completa texto y respuesta')
-                  await crearPregunta({ texto, tipo: tipoC, opciones: opts, respuestaCorrecta: correcta, categoria: codigo, dificultad, creadorId, colegioId })
-                  setTexto(''); setOpciones(''); setCorrecta('')
-                  const lista = await listarPreguntas({ tipo: tipoC, categoria: codigo }); setPreguntasSel(lista); setPreguntas(lista)
-                  toast?.show('Pregunta guardada', 'success')
-                } catch (e) { setError(e.message); toast?.show(e.message, 'error') }
-              }}>Guardar pregunta</button>
             </div>
-            <div className="mt-6">
-              <div className="text-sm text-slate-600 mb-2">Preguntas agregadas</div>
-              <div className="border rounded-md">
-                {preguntasSel.map((pp, i) => (
-                  <div key={pp.Id || pp.id || i} className={`px-3 py-2 text-sm ${i>0 ? 'border-t' : ''}`}>{pp.Texto || pp.texto}</div>
-                ))}
-                {preguntasSel.length === 0 && (
-                  <div className="px-3 py-2 text-sm text-slate-500">Sin preguntas</div>
+
+            <div className="flex gap-3 p-6 pt-0">
+              <button
+                onClick={() => {
+                  setShowModal(false)
+                  setPSel('')
+                  setInicio('')
+                  setFin('')
+                  setParam({})
+                }}
+                className="flex-1 h-11 rounded-lg border text-muted-foreground font-medium hover:bg-soft-divider transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={crearNuevoReto}
+                disabled={creando || !pSel || !inicio || !fin}
+                className="flex-1 h-11 rounded-lg bg-primary text-white font-medium hover:bg-primary-light transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {creando ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Creando...
+                  </>
+                ) : (
+                  'Crear y Configurar'
                 )}
-              </div>
+              </button>
             </div>
           </div>
-        )
-      })()}
+        </div>
+      )}
     </div>
   )
 }

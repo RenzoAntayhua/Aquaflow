@@ -8,6 +8,9 @@ using System.Text;
 using System.Security.Cryptography;
 using Microsoft.OpenApi.Models;
 using System.Data.Common;
+using Microsoft.AspNetCore.ResponseCompression;
+using System.IO.Compression;
+using AquaFlow.Api.Services;
 
 var envPath = Path.Combine(AppContext.BaseDirectory, ".env");
 if (File.Exists(envPath))
@@ -46,12 +49,41 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Base de datos PostgreSQL
+// Base de datos PostgreSQL con optimizaciones
 var pgConn = Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING")
              ?? "Host=localhost;Port=5432;Database=appdb;Username=admin;Password=admin123";
 
 builder.Services.AddDbContext<AquaFlowDbContext>(opts =>
-    opts.UseNpgsql(pgConn));
+{
+    opts.UseNpgsql(pgConn, npgsqlOpts =>
+    {
+        npgsqlOpts.CommandTimeout(30);
+        npgsqlOpts.EnableRetryOnFailure(3, TimeSpan.FromSeconds(5), null);
+    });
+    // Deshabilitar tracking por defecto para mejor rendimiento en lecturas
+    opts.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+});
+
+// Memory Cache para datos que no cambian frecuentemente
+builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<ICacheService, CacheService>();
+
+// InfluxDB Service para datos de sensores IoT
+builder.Services.AddSingleton<IInfluxDbService, InfluxDbService>();
+
+// Response Compression para reducir tamaño de respuestas
+builder.Services.AddResponseCompression(opts =>
+{
+    opts.EnableForHttps = true;
+    opts.Providers.Add<BrotliCompressionProvider>();
+    opts.Providers.Add<GzipCompressionProvider>();
+    opts.MimeTypes = ResponseCompressionDefaults.MimeTypes.Concat(new[] { "application/json" });
+});
+builder.Services.Configure<BrotliCompressionProviderOptions>(opts => opts.Level = CompressionLevel.Fastest);
+builder.Services.Configure<GzipCompressionProviderOptions>(opts => opts.Level = CompressionLevel.Fastest);
+
+// Response Caching para endpoints con [ResponseCache]
+builder.Services.AddResponseCaching();
 
 
 // JWT Auth
@@ -117,6 +149,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseCors("FrontendCors");
+app.UseResponseCompression();
+app.UseResponseCaching();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

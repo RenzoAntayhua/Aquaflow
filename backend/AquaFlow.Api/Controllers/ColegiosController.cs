@@ -10,14 +10,32 @@ namespace AquaFlow.Api.Controllers
     {
         [HttpGet]
         [Route("api/colegios")]
+        [ResponseCache(Duration = 60)] // Cache HTTP de 1 minuto
         public async Task<IActionResult> List([FromServices] AquaFlowDbContext db)
         {
-            var colegios = await db.Colegios.OrderBy(c => c.Nombre).ToListAsync();
+            // Proyección para reducir datos transferidos
+            var colegios = await db.Colegios
+                .OrderBy(c => c.Nombre)
+                .Select(c => new {
+                    c.Id,
+                    c.Nombre,
+                    c.Ciudad,
+                    c.EmailContacto,
+                    c.CodigoLocal,
+                    c.Nivel,
+                    c.Direccion,
+                    c.DireccionExacta,
+                    c.Telefono,
+                    c.Estado,
+                    c.DistritoId
+                })
+                .ToListAsync();
             return Ok(colegios);
         }
 
         [HttpGet]
         [Route("api/ciudades")]
+        [ResponseCache(Duration = 300)] // Cache HTTP de 5 minutos
         public async Task<IActionResult> Ciudades([FromServices] AquaFlowDbContext db)
         {
             var ciudades = await db.Colegios

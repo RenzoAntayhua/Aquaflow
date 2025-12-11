@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext'
 export default function AdminLayout() {
   const { user, setToken, setUser } = useAuth()
   const navigate = useNavigate()
-  // Aceptar rol como string o número para evitar errores al hacer toLowerCase
   const rawRol = user?.rol
   const rol = typeof rawRol === 'string'
     ? rawRol.toLowerCase()
@@ -13,6 +12,7 @@ export default function AdminLayout() {
       ? ['estudiante','profesor','director','admin'][Number(rawRol)]
       : undefined
   const location = useLocation()
+  
   if (rol !== 'admin') {
     return <Navigate to="/login" state={{ from: location.pathname }} replace />
   }
@@ -26,77 +26,143 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
+  const navItems = [
+    { to: '/admin', label: 'Inicio', icon: '🏠', exact: true },
+    { to: '/admin/colegios', label: 'Colegios', icon: '🏫' },
+    { to: '/admin/usuarios', label: 'Usuarios', icon: '👥' },
+    { to: '/admin/reportes', label: 'Reportes', icon: '📊' },
+    { to: '/admin/auditoria', label: 'Auditoría', icon: '📋' },
+    { to: '/admin/config', label: 'Config', icon: '⚙️' },
+  ]
+
   return (
-    <div className="min-h-screen bg-[#f3f6f8]">
-      <header className="sticky top-0 z-30 bg-white/95 backdrop-blur border-b">
-        <div className="mx-auto max-w-6xl px-3 h-12 flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm">💧</div>
-            <span className="font-semibold text-slate-800 text-sm">Aquaflow Admin</span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/30">
+      {/* Header */}
+      <header className="sticky top-0 z-30 bg-white/80 backdrop-blur-xl border-b border-slate-200/60 shadow-sm">
+        <div className="mx-auto max-w-7xl px-4 h-16 flex items-center gap-6">
+          {/* Logo */}
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-xl shadow-lg shadow-blue-500/30">
+                💧
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                <span className="text-[8px] text-white">✓</span>
+              </div>
+            </div>
+            <div>
+              <span className="font-bold text-slate-800 text-lg">AquaFlow</span>
+              <div className="text-[10px] text-slate-400 font-medium -mt-1">ADMINISTRADOR</div>
+            </div>
           </div>
-          <nav className="flex-1 flex items-center justify-center gap-6 text-xs text-slate-700">
-            <Tab to="/admin" label="Inicio" />
-            <Tab to="/admin/colegios" label="Colegios" />
-            {/* El administrador no gestiona aulas */}
-            <Tab to="/admin/usuarios" label="Usuarios" />
-            <Tab to="/admin/reportes" label="Reportes" />
-            <Tab to="/admin/auditoria" label="Auditoría" />
-            <Tab to="/admin/config" label="Config" />
+
+          {/* Navigation */}
+          <nav className="flex-1 flex items-center justify-center">
+            <div className="flex items-center gap-1 bg-slate-100/80 rounded-xl p-1">
+              {navItems.map(item => (
+                <NavItem key={item.to} {...item} />
+              ))}
+            </div>
           </nav>
-          <UserMenu onLogout={handleLogout} />
+
+          {/* User Menu */}
+          <UserMenu user={user} onLogout={handleLogout} />
         </div>
       </header>
-      <main className="mx-auto max-w-6xl p-4">
+
+      {/* Main Content */}
+      <main className="mx-auto max-w-7xl p-6">
         <Outlet />
       </main>
+
+      {/* Footer */}
+      <footer className="border-t bg-white/50 mt-8">
+        <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between text-xs text-slate-400">
+          <span>© 2025 AquaFlow - Sistema de Gestión del Agua</span>
+          <span>v1.0.0</span>
+        </div>
+      </footer>
     </div>
   )
 }
 
-function Tab({ to, label }) {
+function NavItem({ to, label, icon, exact }) {
   return (
     <NavLink
       to={to}
+      end={exact}
       className={({ isActive }) =>
-        `relative px-2 py-1 hover:text-blue-700 ${isActive ? 'text-blue-700' : ''}`
+        `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+          isActive
+            ? 'bg-white text-blue-700 shadow-sm'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+        }`
       }
     >
-      {({ isActive }) => (
-        <span className="flex items-center gap-1">
-          {label}
-          {isActive && <span className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-10 h-[2px] bg-blue-600 rounded-full" />}
-        </span>
-      )}
+      <span className="text-base">{icon}</span>
+      <span>{label}</span>
     </NavLink>
   )
 }
 
-function UserMenu({ onLogout }) {
+function UserMenu({ user, onLogout }) {
   const [open, setOpen] = useState(false)
+  
   return (
-    <div className="ml-auto relative">
+    <div className="relative">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="h-7 px-3 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs"
+        className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 transition-colors"
         aria-haspopup="menu"
         aria-expanded={open}
       >
-        ⚙️ Admin
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-2 w-40 bg-white border rounded-md shadow text-sm">
-          <button className="w-full text-left px-3 py-2 hover:bg-slate-50" onClick={() => { setOpen(false); }}>
-            Perfil (pronto)
-          </button>
-          <button className="w-full text-left px-3 py-2 hover:bg-slate-50" onClick={() => { setOpen(false); window.location.href = '/password-change' }}>
-            Cambiar contraseña
-          </button>
-          <div className="border-t" />
-          <button className="w-full text-left px-3 py-2 text-red-700 hover:bg-red-50" onClick={() => { setOpen(false); onLogout?.() }}>
-            Cerrar sesión
-          </button>
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+          {user?.nombre?.charAt(0)?.toUpperCase() || 'A'}
         </div>
+        <div className="hidden md:block text-left">
+          <div className="text-sm font-medium text-slate-700">{user?.nombre || 'Admin'}</div>
+          <div className="text-xs text-slate-400">{user?.email || ''}</div>
+        </div>
+        <svg className={`w-4 h-4 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border z-50 py-2 animate-in fade-in slide-in-from-top-2 duration-200">
+            <div className="px-4 py-3 border-b">
+              <div className="font-medium text-slate-800">{user?.nombre}</div>
+              <div className="text-xs text-slate-400">{user?.email}</div>
+            </div>
+            
+            <div className="py-1">
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                onClick={() => { setOpen(false); }}
+              >
+                <span>👤</span> Mi perfil
+              </button>
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 flex items-center gap-2"
+                onClick={() => { setOpen(false); window.location.href = '/password-change' }}
+              >
+                <span>🔑</span> Cambiar contraseña
+              </button>
+            </div>
+            
+            <div className="border-t pt-1">
+              <button 
+                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                onClick={() => { setOpen(false); onLogout?.() }}
+              >
+                <span>🚪</span> Cerrar sesión
+              </button>
+            </div>
+          </div>
+        </>
       )}
     </div>
   )

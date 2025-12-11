@@ -12,6 +12,30 @@ namespace AquaFlow.Api.Controllers
     [Route("auth")]
     public class AuthController : ControllerBase
     {
+        // Rate limiting para login
+        private static readonly Dictionary<string, List<DateTime>> _loginAttempts = new();
+        private static readonly object _loginLock = new();
+
+        private static bool IsLoginLimited(string key)
+        {
+            lock (_loginLock)
+            {
+                if (!_loginAttempts.TryGetValue(key, out var list))
+                {
+                    list = new List<DateTime>();
+                    _loginAttempts[key] = list;
+                }
+                var now = DateTime.UtcNow;
+                list.RemoveAll(t => t < now.AddMinutes(-15));
+                // Máximo 5 intentos por minuto, 20 por 15 minutos
+                var lastMinute = list.Count(t => t > now.AddMinutes(-1));
+                var last15Min = list.Count;
+                if (lastMinute >= 5 || last15Min >= 20) return true;
+                list.Add(now);
+                return false;
+            }
+        }
+
         private static SymmetricSecurityKey BuildKey()
         {
             var jwtSecret = Environment.GetEnvironmentVariable("JWT_SECRET") ?? "dev-secret-please-change";
@@ -35,6 +59,18 @@ namespace AquaFlow.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Registrar([FromServices] AquaFlowDbContext db, [FromBody] RegistroRequest req)
         {
+            // Validar campos requeridos
+            if (string.IsNullOrWhiteSpace(req.nombre))
+                return BadRequest(new { mensaje = "El nombre es requerido." });
+            if (string.IsNullOrWhiteSpace(req.email))
+                return BadRequest(new { mensaje = "El email es requerido." });
+            if (string.IsNullOrWhiteSpace(req.password))
+                return BadRequest(new { mensaje = "La contraseña es requerida." });
+
+            // Validar fortaleza de contraseña
+            if (req.password.Length < 8)
+                return BadRequest(new { mensaje = "La contraseña debe tener al menos 8 caracteres." });
+
             var existe = await db.Usuarios.AnyAsync(u => u.Email == req.email);
             if (existe) return Conflict(new { mensaje = "El email ya está registrado." });
 
@@ -47,13 +83,18 @@ namespace AquaFlow.Api.Controllers
             if (req.colegioId is null)
                 return BadRequest(new { mensaje = "Debe seleccionar un colegio al registrarse como estudiante." });
 
+            // Verificar que el colegio existe
+            var colegioExiste = await db.Colegios.AnyAsync(c => c.Id == req.colegioId.Value);
+            if (!colegioExiste)
+                return BadRequest(new { mensaje = "El colegio seleccionado no existe." });
+
             var hash = BCrypt.Net.BCrypt.HashPassword(req.password);
             var usuario = new Usuario
             {
                 ColegioId = req.colegioId,
                 Rol = rol,
-                Nombre = req.nombre,
-                Email = req.email,
+                Nombre = req.nombre.Trim(),
+                Email = req.email.Trim().ToLowerInvariant(),
                 PasswordHash = hash,
                 Estado = "activo"
             };
@@ -67,15 +108,34 @@ namespace AquaFlow.Api.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> Login([FromServices] AquaFlowDbContext db, [FromBody] LoginRequest req)
         {
-            var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == req.email);
-            if (usuario is null) return Unauthorized();
+            // Rate limiting por IP y email
+            var ip = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+            var emailKey = $"email:{req.email?.ToLowerInvariant()}";
+            var ipKey = $"ip:{ip}";
+            
+            if (IsLoginLimited(emailKey) || IsLoginLimited(ipKey))
+                return StatusCode(429, new { mensaje = "Demasiados intentos. Espera unos minutos." });
+
+            var usuario = await db.Usuarios.AsTracking().FirstOrDefaultAsync(u => u.Email == req.email);
+            if (usuario is null) return Unauthorized(new { mensaje = "Credenciales inválidas" });
             var ok = BCrypt.Net.BCrypt.Verify(req.password, usuario.PasswordHash);
-            if (!ok) return Unauthorized();
+            if (!ok) return Unauthorized(new { mensaje = "Credenciales inválidas" });
+
+            // Obtener aulaId si es profesor
+            int? aulaId = null;
+            if (usuario.Rol == RolUsuario.profesor)
+            {
+                aulaId = await db.Aulas
+                    .Where(a => a.ProfesorId == usuario.Id)
+                    .Select(a => a.Id)
+                    .FirstOrDefaultAsync();
+            }
 
             var claims = new[]
             {
                 new System.Security.Claims.Claim("userId", usuario.Id.ToString()),
-                new System.Security.Claims.Claim("rol", usuario.Rol.ToString()),
+                new System.Security.Claims.Claim("rol", usuario.Rol.ToString().ToLowerInvariant()),
+                new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, usuario.Rol.ToString().ToLowerInvariant()),
                 new System.Security.Claims.Claim("colegioId", usuario.ColegioId?.ToString() ?? "")
             };
 
@@ -90,14 +150,29 @@ namespace AquaFlow.Api.Controllers
             );
 
             var jwt = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler().WriteToken(token);
-            return Ok(new { token = jwt, usuario = new { usuario.Id, usuario.Nombre, usuario.Email, rol = usuario.Rol.ToString().ToLowerInvariant(), usuario.ColegioId, Estado = usuario.Estado, requiereCambioPassword = string.Equals(usuario.Estado, "requiere_cambio", StringComparison.OrdinalIgnoreCase) } });
+            return Ok(new { 
+                token = jwt, 
+                usuario = new { 
+                    usuario.Id, 
+                    usuario.Nombre, 
+                    usuario.Email, 
+                    rol = usuario.Rol.ToString().ToLowerInvariant(), 
+                    usuario.ColegioId,
+                    aulaId,
+                    Estado = usuario.Estado, 
+                    requiereCambioPassword = string.Equals(usuario.Estado, "requiere_cambio", StringComparison.OrdinalIgnoreCase) 
+                } 
+            });
         }
 
         [HttpPost("password/reset/solicitar")]
         [AllowAnonymous]
         public async Task<IActionResult> ResetSolicitar([FromServices] AquaFlowDbContext db, [FromBody] ResetRequest req)
         {
-            var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == req.email);
+            // Siempre responder igual para evitar enumeración de emails
+            var responseMsg = "Si el email está registrado, recibirás instrucciones para recuperar tu contraseña.";
+            
+            var usuario = await db.Usuarios.AsTracking().FirstOrDefaultAsync(u => u.Email == req.email);
             if (usuario is not null)
             {
                 var token = Guid.NewGuid().ToString("N");
@@ -110,9 +185,35 @@ namespace AquaFlow.Api.Controllers
                 };
                 db.RecuperacionTokens.Add(rec);
                 await db.SaveChangesAsync();
-                return Ok(new { mensaje = "Token generado", token });
+
+                // Intentar enviar email con el token
+                try
+                {
+                    var host = Environment.GetEnvironmentVariable("SMTP_HOST");
+                    var portStr = Environment.GetEnvironmentVariable("SMTP_PORT");
+                    var user = Environment.GetEnvironmentVariable("SMTP_USER");
+                    var pass = Environment.GetEnvironmentVariable("SMTP_PASS");
+                    var from = Environment.GetEnvironmentVariable("SMTP_FROM") ?? "no-reply@aquaflow";
+                    
+                    if (!string.IsNullOrWhiteSpace(host) && int.TryParse(portStr, out var port))
+                    {
+                        using var client = new System.Net.Mail.SmtpClient(host, port);
+                        client.EnableSsl = true;
+                        if (!string.IsNullOrWhiteSpace(user) && !string.IsNullOrWhiteSpace(pass))
+                            client.Credentials = new System.Net.NetworkCredential(user, pass);
+                        
+                        var mail = new System.Net.Mail.MailMessage(from, req.email)
+                        {
+                            Subject = "Recuperación de contraseña - AquaFlow",
+                            Body = $"Hola {usuario.Nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nTu código de recuperación es: {token}\n\nEste código expira en 1 hora.\n\nSi no solicitaste esto, ignora este mensaje.\n\nSaludos,\nEquipo AquaFlow",
+                        };
+                        await client.SendMailAsync(mail);
+                    }
+                }
+                catch { /* Silenciar errores de email */ }
             }
-            return Ok(new { mensaje = "Si el email existe, se generó un token." });
+            
+            return Ok(new { mensaje = responseMsg });
         }
 
         [HttpPost("password/reset/confirmar")]
