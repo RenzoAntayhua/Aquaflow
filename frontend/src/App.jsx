@@ -68,7 +68,7 @@ export default function App() {
       {showGenericHeader && (
         <header className="bg-blue-600 text-white">
           <div className="max-w-6xl mx-auto px-4 py-3 flex gap-4">
-            <span className="font-semibold">AquaFlow</span>
+            <span className="font-semibold">AquaPlay</span>
             <nav className="flex gap-3 text-sm">
               {logged && (
                 <>

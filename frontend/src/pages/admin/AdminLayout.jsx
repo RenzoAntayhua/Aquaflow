@@ -51,7 +51,7 @@ export default function AdminLayout() {
               </div>
             </div>
             <div>
-              <span className="font-bold text-slate-800 text-lg">AquaFlow</span>
+              <span className="font-bold text-slate-800 text-lg">AquaPlay</span>
               <div className="text-[10px] text-slate-400 font-medium -mt-1">ADMINISTRADOR</div>
             </div>
           </div>
@@ -78,7 +78,7 @@ export default function AdminLayout() {
       {/* Footer */}
       <footer className="border-t bg-white/50 mt-8">
         <div className="mx-auto max-w-7xl px-4 py-4 flex items-center justify-between text-xs text-slate-400">
-          <span>© 2025 AquaFlow - Sistema de Gestión del Agua</span>
+          <span>© 2025 AquaPlay - Sistema de Gestión del Agua</span>
           <span>v1.0.0</span>
         </div>
       </footer>

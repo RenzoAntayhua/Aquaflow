@@ -71,7 +71,7 @@ export default function Register() {
           <div className="absolute bottom-20 left-40 text-6xl animate-float" style={{ animationDelay: '1.5s' }}>🌿</div>
         </div>
         <div className="relative z-10 flex flex-col items-center justify-center w-full p-12 text-white">
-          <h1 className="text-5xl font-bold mb-4 text-center">Únete a Aquaflow</h1>
+          <h1 className="text-5xl font-bold mb-4 text-center">Únete a AquaPlay</h1>
           <p className="text-xl text-center max-w-md opacity-90">Comienza tu aventura como Héroe del Agua</p>
           <div className="mt-12 flex gap-8">
             <div className="text-center"><div className="text-4xl mb-2">💧</div><p className="text-sm opacity-80">Aprende</p></div>

@@ -42,7 +42,7 @@ export default function Home() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Panel de Control</h1>
-          <p className="text-slate-500 text-sm mt-1">Resumen general del sistema AquaFlow</p>
+          <p className="text-slate-500 text-sm mt-1">Resumen general del sistema AquaPlay</p>
         </div>
         <div className="text-right">
           <div className="text-xs text-slate-400">Última actualización</div>

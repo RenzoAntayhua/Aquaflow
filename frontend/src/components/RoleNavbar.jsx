@@ -22,7 +22,7 @@ export default function RoleNavbar() {
       <div className="px-4 h-12 w-full flex items-center gap-4">
         <div className="flex items-center gap-2">
           <div className="h-7 w-7 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-sm">💧</div>
-          <span className="font-semibold text-slate-800 text-sm">Aquaflow</span>
+          <span className="font-semibold text-slate-800 text-sm">AquaPlay</span>
         </div>
         <nav className="flex-1 flex items-center justify-center gap-6 text-xs text-slate-700">
           {items.map(it => (

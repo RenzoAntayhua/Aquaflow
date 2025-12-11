@@ -65,7 +65,7 @@ function GeneralSettings() {
         >
           <input 
             className="h-10 w-64 px-3 rounded-lg border text-sm" 
-            defaultValue="AquaFlow"
+            defaultValue="AquaPlay"
           />
         </SettingRow>
 
@@ -207,7 +207,7 @@ function NotificationSettings() {
           <input 
             className="h-10 w-64 px-3 rounded-lg border text-sm" 
             type="email"
-            placeholder="noreply@aquaflow.com"
+            placeholder="noreply@aquaplay.com"
           />
         </SettingRow>
 
